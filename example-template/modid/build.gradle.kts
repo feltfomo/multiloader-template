@@ -1,4 +1,4 @@
-// Root build script — shared config only.
+// Root build script. Shared config only.
 // All real code lives in common/, fabric/, neoforge/.
 
 plugins {

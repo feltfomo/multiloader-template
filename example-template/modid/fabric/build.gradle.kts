@@ -1,4 +1,4 @@
-// Fabric bootstrap — wires the common module into Fabric's loader.
+// Fabric bootstrap. Wires the common module into Fabric's loader.
 plugins {
     id("java-library")
     id("org.jetbrains.kotlin.jvm")

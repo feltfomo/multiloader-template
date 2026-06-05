@@ -4,8 +4,6 @@ set -euo pipefail
 # feltfomo multiloader template generator
 # Produces a ready-to-build zip from your Fabric + NeoForge + Java/Kotlin/Scala stack.
 
-TEMPLATE_REPO="https://github.com/feltfomo/nexus/archive/refs/heads/main.zip"
-
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
 
 info()    { echo -e "${CYAN}${BOLD}=>${RESET} $*"; }
@@ -31,11 +29,16 @@ MOD_AUTHORS=$(ask "authors"         "yourname")
 MOD_LICENSE=$(ask "license"         "All Rights Reserved")
 MOD_DESC=$(ask    "description"     "A Minecraft mod.")
 
+# mod id and group need to be valid identifiers, so check them before building anything
+[[ "$MOD_ID" =~ ^[a-z][a-z0-9_]*$ ]] || die "mod id must start with a lowercase letter and use only lowercase letters, digits, and underscores."
+[[ "$MOD_GROUP" =~ ^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$ ]] || die "group must be a valid package like com.example.${MOD_ID}."
+
 # turn com.example.mymod into com/example/mymod for directory creation
 MOD_GROUP_PATH="${MOD_GROUP//.//}"
 
-# turn "my mod" or "nexus" into "MyMod" or "Nexus" for class names
-MOD_CLASS=$(echo "$MOD_NAME" | sed 's/ \+/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2); print}' | tr -d ' ')
+# build a class prefix from the name: drop punctuation, capitalize each word, join them
+MOD_CLASS=$(echo "$MOD_NAME" | sed 's/[^[:alnum:] ]//g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2); print}' | tr -d ' ')
+[[ -n "$MOD_CLASS" ]] || die "mod name needs at least one letter or digit."
 
 OUT_DIR="${MOD_ID}"
 ZIP_NAME="${MOD_ID}-template.zip"
@@ -57,7 +60,7 @@ echo "  output      : ${ZIP_NAME}"
 echo
 echo -ne "${BOLD}Continue?${RESET} [Y/n]: "
 read -r confirm
-[[ "${confirm,,}" == "n" ]] && { info "Aborted."; exit 0; }
+[[ "${confirm,,}" == n* ]] && { info "Aborted."; exit 0; }
 
 info "Creating directory tree..."
 
@@ -65,7 +68,9 @@ mkdir -p "${OUT_DIR}"/{common,fabric,neoforge}/src
 mkdir -p "${OUT_DIR}/gradle/wrapper"
 
 for module in common fabric neoforge; do
-    for env in main client; do
+    envs=(main)
+    [[ "$module" != neoforge ]] && envs+=(client)
+    for env in "${envs[@]}"; do
         mkdir -p "${OUT_DIR}/${module}/src/${env}/java/${MOD_GROUP_PATH}/$(  [[ $env == client ]] && echo 'client/' || echo '')mixin"
         mkdir -p "${OUT_DIR}/${module}/src/${env}/kotlin/${MOD_GROUP_PATH}/$(  [[ $env == client ]] && echo 'client' || echo '')"
         mkdir -p "${OUT_DIR}/${module}/src/${env}/scala/${MOD_GROUP_PATH}/$(  [[ $env == client ]] && echo 'client' || echo '')"
@@ -95,7 +100,7 @@ zipStorePath=wrapper/dists
 EOF
 
 write_file "build.gradle.kts" << EOF
-// Root build script — shared config only.
+// Root build script. Shared config only.
 // All real code lives in common/, fabric/, neoforge/.
 
 plugins {
@@ -184,7 +189,7 @@ kotlin_version=2.4.0
 scala_version=3.8.3
 fabric_kotlin_version=1.13.12+kotlin.2.4.0
 
-# Scala language provider — handles Scala entrypoints on both loaders
+# Scala language provider. Handles Scala entrypoints on both loaders.
 # Fabric:   https://github.com/Kotori316/SLP-fabric
 # NeoForge: https://github.com/Kotori316/SLP
 slp_fabric_version=4.0.4
@@ -192,7 +197,7 @@ slp_neoforge_version=4.0.5-mc26.1.2-3.8.3
 EOF
 
 write_file "common/build.gradle.kts" << EOF
-// Compiled against vanilla MC only — no Fabric, no NeoForge.
+// Compiled against vanilla MC only. No Fabric, no NeoForge.
 plugins {
     id("java-library")
     id("org.jetbrains.kotlin.jvm")
@@ -251,7 +256,7 @@ tasks.withType<ProcessResources>().configureEach {
 EOF
 
 write_file "fabric/build.gradle.kts" << EOF
-// Fabric bootstrap — wires the common module into Fabric's loader.
+// Fabric bootstrap. Wires the common module into Fabric's loader.
 plugins {
     id("java-library")
     id("org.jetbrains.kotlin.jvm")
@@ -334,7 +339,7 @@ tasks.withType<JavaCompile>().configureEach {
 EOF
 
 write_file "neoforge/build.gradle.kts" << EOF
-// NeoForge bootstrap — wires the common module into NeoForge's loader.
+// NeoForge bootstrap. Wires the common module into NeoForge's loader.
 plugins {
     id("java-library")
     id("org.jetbrains.kotlin.jvm")
@@ -355,17 +360,13 @@ kotlin {
     }
 }
 
-sourceSets {
-    val main by getting
-    create("client") {
-        compileClasspath += main.compileClasspath + main.output
-        runtimeClasspath += main.runtimeClasspath + main.output
-    }
-}
-
 sourceSets.configureEach {
     kotlin.srcDir("src/\$name/kotlin")
 }
+
+// common's compiled classes, without loom's remapped deps
+val commonProject    = project(":common")
+val commonSourceSets = commonProject.extensions.getByType<SourceSetContainer>()
 
 neoForge {
     version = neoVersion
@@ -378,7 +379,10 @@ neoForge {
     }
     mods {
         create("${MOD_ID}") {
+            // neoforge ships one jar, so common rides inside this mod
             sourceSet(sourceSets.main.get())
+            sourceSet(commonSourceSets.getByName("main"))
+            sourceSet(commonSourceSets.getByName("client"))
         }
     }
 }
@@ -391,21 +395,25 @@ repositories {
     }
 }
 
-val commonProject    = project(":common")
-val commonSourceSets = commonProject.extensions.getByType<SourceSetContainer>()
-
 dependencies {
     implementation("com.kotori316:scalablecatsforce-neoforge:\$slpNeoVersion") {
         isTransitive = false
     }
-    implementation("org.scala-lang:scala3-library_3:\$scalaVersion")
-    compileOnly(commonProject)
-    "clientCompileOnly"(commonSourceSets.getByName("client").output)
+    // slp provides the scala library at runtime
+    compileOnly("org.scala-lang:scala3-library_3:\$scalaVersion")
+    // compile against common, runtime comes from the mods block
+    compileOnly(commonSourceSets.getByName("main").output)
+    compileOnly(commonSourceSets.getByName("client").output)
+}
+
+// fold common into the built jar
+tasks.named<Jar>("jar") {
+    from(commonSourceSets.getByName("main").output)
+    from(commonSourceSets.getByName("client").output)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 tasks.named<ProcessResources>("processResources") {
-    from(sourceSets.getByName("client").resources)
-
     val props = mapOf(
         "mod_id"                  to providers.gradleProperty("mod_id").get(),
         "mod_name"                to providers.gradleProperty("mod_name").get(),
@@ -447,8 +455,13 @@ MIXIN_CLIENT='{
 }'
 
 for module in common fabric neoforge; do
-    echo "$MIXIN_MAIN"   > "${OUT_DIR}/${module}/src/main/resources/${MOD_ID}.mixins.json"
-    echo "$MIXIN_CLIENT" > "${OUT_DIR}/${module}/src/client/resources/${MOD_ID}.client.mixins.json"
+    echo "$MIXIN_MAIN" > "${OUT_DIR}/${module}/src/main/resources/${MOD_ID}.mixins.json"
+    if [[ "$module" == neoforge ]]; then
+        # neoforge has no client source set, so its client mixin config ships in main resources
+        echo "$MIXIN_CLIENT" > "${OUT_DIR}/${module}/src/main/resources/${MOD_ID}.client.mixins.json"
+    else
+        echo "$MIXIN_CLIENT" > "${OUT_DIR}/${module}/src/client/resources/${MOD_ID}.client.mixins.json"
+    fi
 done
 
 info "Writing fabric.mod.json..."
@@ -585,30 +598,17 @@ EOF
 write_file "neoforge/src/main/scala/${MOD_GROUP_PATH}/${MOD_CLASS}NeoForge.scala" << EOF
 package ${MOD_GROUP}
 
+import net.neoforged.api.distmarker.Dist
 import net.neoforged.bus.api.IEventBus
-import net.neoforged.fml.ModContainer
 import net.neoforged.fml.common.Mod
 import ${MOD_GROUP}.${MOD_CLASS}Common
-import ${MOD_GROUP}.${MOD_CLASS}Constants.MOD_ID
-
-@Mod(MOD_ID)
-object ${MOD_CLASS}NeoForge:
-  def apply(bus: IEventBus, container: ModContainer): Unit =
-    ${MOD_CLASS}Common.init()
-EOF
-
-write_file "neoforge/src/client/scala/${MOD_GROUP_PATH}/client/${MOD_CLASS}ClientNeoForge.scala" << EOF
-package ${MOD_GROUP}.client
-
-import net.neoforged.api.distmarker.Dist
-import net.neoforged.fml.common.Mod
 import ${MOD_GROUP}.client.${MOD_CLASS}ClientCommon
 import ${MOD_GROUP}.${MOD_CLASS}Constants.MOD_ID
 
-@Mod(value = MOD_ID, dist = Array(Dist.CLIENT))
-object ${MOD_CLASS}ClientNeoForge:
-  def apply(): Unit =
-    ${MOD_CLASS}ClientCommon.init()
+@Mod(MOD_ID)
+class ${MOD_CLASS}NeoForge(modBus: IEventBus, dist: Dist):
+  ${MOD_CLASS}Common.init()
+  if dist == Dist.CLIENT then ${MOD_CLASS}ClientCommon.init()
 EOF
 
 write_file "README.md" << EOF

@@ -1,4 +1,4 @@
-// NeoForge bootstrap — wires the common module into NeoForge's loader.
+// NeoForge bootstrap. Wires the common module into NeoForge's loader.
 plugins {
     id("java-library")
     id("org.jetbrains.kotlin.jvm")
@@ -19,17 +19,13 @@ kotlin {
     }
 }
 
-sourceSets {
-    val main by getting
-    create("client") {
-        compileClasspath += main.compileClasspath + main.output
-        runtimeClasspath += main.runtimeClasspath + main.output
-    }
-}
-
 sourceSets.configureEach {
     kotlin.srcDir("src/$name/kotlin")
 }
+
+// common's compiled classes, without loom's remapped deps
+val commonProject    = project(":common")
+val commonSourceSets = commonProject.extensions.getByType<SourceSetContainer>()
 
 neoForge {
     version = neoVersion
@@ -42,7 +38,10 @@ neoForge {
     }
     mods {
         create("modid") {
+            // neoforge ships one jar, so common rides inside this mod
             sourceSet(sourceSets.main.get())
+            sourceSet(commonSourceSets.getByName("main"))
+            sourceSet(commonSourceSets.getByName("client"))
         }
     }
 }
@@ -55,21 +54,25 @@ repositories {
     }
 }
 
-val commonProject    = project(":common")
-val commonSourceSets = commonProject.extensions.getByType<SourceSetContainer>()
-
 dependencies {
     implementation("com.kotori316:scalablecatsforce-neoforge:$slpNeoVersion") {
         isTransitive = false
     }
-    implementation("org.scala-lang:scala3-library_3:$scalaVersion")
-    compileOnly(commonProject)
-    "clientCompileOnly"(commonSourceSets.getByName("client").output)
+    // slp provides the scala library at runtime
+    compileOnly("org.scala-lang:scala3-library_3:$scalaVersion")
+    // compile against common, runtime comes from the mods block
+    compileOnly(commonSourceSets.getByName("main").output)
+    compileOnly(commonSourceSets.getByName("client").output)
+}
+
+// fold common into the built jar
+tasks.named<Jar>("jar") {
+    from(commonSourceSets.getByName("main").output)
+    from(commonSourceSets.getByName("client").output)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 tasks.named<ProcessResources>("processResources") {
-    from(sourceSets.getByName("client").resources)
-
     val props = mapOf(
         "mod_id"                  to providers.gradleProperty("mod_id").get(),
         "mod_name"                to providers.gradleProperty("mod_name").get(),

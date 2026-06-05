@@ -1,4 +1,4 @@
-// Compiled against vanilla MC only — no Fabric, no NeoForge.
+// Compiled against vanilla MC only. No Fabric, no NeoForge.
 plugins {
     id("java-library")
     id("org.jetbrains.kotlin.jvm")
