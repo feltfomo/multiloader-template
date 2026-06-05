@@ -1,0 +1,10 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+
+# keep the wrapper jar
+!gradle/wrapper/gradle-wrapper.jar
