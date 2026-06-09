@@ -14,6 +14,7 @@ pluginManagement {
 
     plugins {
         id("net.fabricmc.fabric-loom") version "1.16-SNAPSHOT"
+        id("net.neoforged.moddev") version "2.0.141"
     }
 }
 
@@ -25,4 +26,4 @@ rootProject.name = "modid"
 
 include("common")
 include("fabric")
-// neoforge is wired back in during Stage B
+include("neoforge")

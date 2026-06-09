@@ -1,111 +1,89 @@
 # feltfomo-multiloader-template
 
-One Minecraft mod codebase that runs on Fabric, NeoForge, and Quilt. You write the mod once, in whatever JVM language you like, against vanilla Minecraft plus Mixins. No per-loader source trees, no loader-specific API, no remapping dance.
+One mod, written once, that runs on Fabric and NeoForge (and Quilt if you want it). You write against vanilla Minecraft plus Mixins. No loader-specific API, no per-loader copies of your code, no remapping.
 
-Built for modern, unobfuscated Minecraft (26.1.x) on Java 25.
+This only works because modern Minecraft (26.1+) ships unobfuscated and every loader speaks Mixin. The old multiloader tax is mostly gone. This template just leans on that hard.
 
-## Why this exists
+## The idea
 
-Modern Minecraft ships unobfuscated, and every current loader speaks Mixin. The old multiloader pain (remapping, per-loader copies of everything) is mostly gone. This template leans all the way into that:
+Your code lives in `common/`, compiled against vanilla. Each loader gets a tiny Java shim that does nothing but call into common. Adding a feature feels like writing a single-loader mod, because most of the time it is.
 
-- **One source of truth.** Mod metadata, dependencies, and the Mixin config list live in a single Pkl file (`pkl/mod.pkl`). One `pkl eval` renders every loader manifest: `fabric.mod.json`, `quilt.mod.json`, `neoforge.mods.toml`, and the Mixin JSON files. You never hand-edit a loader manifest again.
-- **Write to common, not to a loader.** All your code lives in `common/`, compiled against vanilla. Each loader gets a tiny Java shim that does nothing but hand off to common. Adding behavior feels like making a mod for a single loader.
-- **Mixins are the only thing that touches the game, declared once.** Because you target vanilla, a Mixin written once applies on every loader.
-- **Pick your language.** Java, Kotlin, Scala, and Groovy are all first-class in `common`. Use one, use all four. (Clojure works for logic too; see `DESIGN.md`.)
+The stuff you'd normally hand-maintain per loader is generated instead. The loader manifests (`fabric.mod.json`, `quilt.mod.json`, `neoforge.mods.toml`) and the Mixin config JSON all come out of one Pkl file, `template/pkl/mod.pkl`. Change a value there, rebuild, and every manifest regenerates. So you set your version once and register a mixin once, not once per loader.
 
-Read `DESIGN.md` for the full rationale and the trade-offs.
+`DESIGN.md` has the reasoning and the trade-offs. Read it if you want the why.
 
-## Requirements
+## Status
 
-The repo ships a Nix flake with everything pinned (Java 25, Pkl, Gradle). With Nix:
+Where this actually is right now:
 
-```bash
-nix develop
+- Fabric builds and runs.
+- NeoForge skeleton is in the tree but not wired into the build yet. It's next.
+- Quilt is planned and optional.
+- Java only for the moment. The Kotlin/Scala/Groovy source sets come back once the loaders are sorted out.
+
+## Layout
+
+Repo root is template-repo stuff. The buildable project (the part you copy when you scaffold) lives under `template/`:
+
+```
+.
+├── README.md          this file
+├── DESIGN.md          why it's built this way
+├── new-mc-mod.sh      scaffold script (getting replaced by a flake template)
+└── template/          the project you build and copy
+    ├── flake.nix      dev shell: Java 25, Pkl, Gradle
+    ├── pkl/
+    │   ├── Mod.pkl    the schema
+    │   └── mod.pkl    your mod's values
+    ├── common/        all your code + mixins, vanilla-only
+    ├── fabric/        java shim
+    └── neoforge/      java shim (not in the build yet)
 ```
 
-drops you into a shell with the right Java, Pkl, and Gradle on PATH. No Nix? Install Java 25, Pkl 0.31+, and Gradle 9.4+ yourself.
+## Building it
 
-## Quick start
-
-```bash
-nix develop                                # or bring your own Java 25 / Pkl / Gradle
-pkl eval -m build/generated pkl/mod.pkl    # render the loader manifests
-./gradlew build                            # build every loader
-```
-
-Run the game:
+Everything runs from `template/`, not the repo root — that's where the flake and Gradle wrapper live.
 
 ```bash
-./gradlew :fabric:runClient
-./gradlew :neoforge:runClient
-./gradlew :quilt:runClient     # quilt is optional, see below
-./gradlew :fabric:runServer
+cd template
+nix develop                  # Java 25 + Pkl + Gradle on PATH
+./gradlew :fabric:build
 ```
 
-## Editing your mod's identity
+No Nix? Bring your own Java 25, Pkl 0.31+, and Gradle 9.4+. Use `./gradlew`, not a system `gradle` — the wrapper pins 9.4.1, which is what Loom expects.
 
-Everything that describes the mod lives in `pkl/mod.pkl`:
+`./gradlew build` runs the Pkl step (`generatePklConfigs`) before it compiles, so the manifests are always current. You don't have to run `pkl eval` by hand unless you want to eyeball the output.
+
+## Changing your mod's identity
+
+It's all in `template/pkl/mod.pkl`:
 
 ```pkl
 amends "Mod.pkl"
 
 id = "modid"
 group = "com.example.modid"
-version = "1.0.0"
 name = "Modid"
+version = "1.0.0"
 authors = new { "yourname" }
 license = "MIT"
-// ...mc + loader versions, mixin lists
 ```
 
-Change a value, run `pkl eval -m build/generated pkl/mod.pkl`, and all five manifests regenerate. The output lands in `build/generated/` (gitignored) and the build copies each file into the right loader's resources.
-
-## Registering a mixin
-
-Drop your Mixin class in `common/src/main/java/.../mixin/` (or `.../mixin/client/` for client-only), then add its entry to the mixin lists in `pkl/mod.pkl` and re-run `pkl eval`. That one change rewrites `modid.mixins.json` and `modid.client.mixins.json`, and every loader picks them up. You register a mixin once, not once per loader.
-
-## Layout
-
-```
-.
-├── flake.nix              # dev shell: Java 25, Pkl, Gradle
-├── pkl/
-│   ├── Mod.pkl            # schema: the shape of a mod
-│   └── mod.pkl            # your mod's actual values
-├── example-template/
-│   └── modid/             # example output; "modid" is the placeholder name
-│       ├── common/        # all your code + mixins, vanilla-only
-│       ├── fabric/        # Java shim
-│       ├── neoforge/      # Java shim
-│       └── quilt/         # Java shim (optional)
-└── new-mc-mod.sh          # scaffold a fresh project
-```
-
-Everything you write goes in `common`. The loader projects hold no mod logic of their own; they pull in `common` and add the loader wiring on top.
-
-## Languages and compile order
-
-Inside each source set Java compiles first, Kotlin next, Scala last, so Scala sees the Java and Kotlin classes. Groovy fits the same model. Write the loader shims in Java (they're a few lines each), then write everything else in whatever you reach for.
-
-## Loaders
-
-Fabric and NeoForge are the primary targets. Quilt is supported but optional: it's a runtime choice. If Quilt gives you trouble, skip it, the same common code still runs on Fabric and NeoForge.
+Edit, rebuild, done. Those values fan out into every manifest.
 
 ## Versions
 
-| Tool | Version |
+| | |
 |---|---|
 | Minecraft | 26.1.2 |
 | Java | 25 |
-| Gradle | 9.4 |
+| Gradle | 9.4.1 (wrapper) |
 | Fabric Loader | 0.19.3 |
 | NeoForge | 26.1.2.73 |
 | Quilt Loader | 0.29.0 |
-| Kotlin | 2.4.0 |
-| Scala | 3.8.3 |
 
-Manifest versions live in `pkl/mod.pkl`; build coordinates live in `gradle.properties`.
+Manifest versions live in `template/pkl/mod.pkl`; Gradle coordinates live in `template/gradle.properties`. Yes, that's the same numbers in two places. Collapsing them is on the list.
 
 ## License
 
-MIT. See `LICENSE`.
+MIT.
