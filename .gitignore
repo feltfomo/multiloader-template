@@ -1,10 +1,41 @@
-# Gradle
+# ---- Gradle / build output ----
 .gradle/
 build/
+out/
 
-# IDE
+# Pkl-generated manifests live under build/generated/ (covered above).
+
+# ---- Minecraft / Loom / NeoForge dev runs ----
+run/
+runs/
+run-data/
+.architectury-transformer/
+*.log
+
+# ---- Nix ----
+result
+result-*
+.direnv/
+
+# ---- notion-sync state ----
+.notion-sync/
+
+# ---- IDE ----
 .idea/
 *.iml
+*.ipr
+*.iws
+.vscode/
+*.code-workspace
+.settings/
+.classpath
+.project
+bin/
+.fleet/
 
-# keep the wrapper jar
+# ---- OS junk ----
+.DS_Store
+Thumbs.db
+
+# ---- Keep the Gradle wrapper jar ----
 !gradle/wrapper/gradle-wrapper.jar

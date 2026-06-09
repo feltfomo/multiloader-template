@@ -1,71 +1,111 @@
 # feltfomo-multiloader-template
 
-A generator for Minecraft 26.1.2 mods that run on both Fabric and NeoForge from one codebase. Run `new-mc-mod.sh`, answer a handful of prompts, and you get a zip with a full Gradle project: loader manifests, mixin configs, and Scala entrypoints already filled in.
+One Minecraft mod codebase that runs on Fabric, NeoForge, and Quilt. You write the mod once, in whatever JVM language you like, against vanilla Minecraft plus Mixins. No per-loader source trees, no loader-specific API, no remapping dance.
 
-The `modid/` folder in this repo is example output. The script uses `modid` as the placeholder name, so that's what you'll see all through it. The README inside that folder is just a stub.
+Built for modern, unobfuscated Minecraft (26.1.x) on Java 25.
 
-## Using the script
+## Why this exists
 
-```bash
-bash new-mc-mod.sh
-```
+Modern Minecraft ships unobfuscated, and every current loader speaks Mixin. The old multiloader pain (remapping, per-loader copies of everything) is mostly gone. This template leans all the way into that:
 
-It asks for the mod id, display name, Maven group, version, authors, license, and description. The package path comes from the group, and the class prefix comes from PascalCasing the display name (so "My Mod" turns into `MyMod`). After a summary it writes the project, zips it to `<modid>-template.zip`, and clears out the working directory.
+- **One source of truth.** Mod metadata, dependencies, and the Mixin config list live in a single Pkl file (`pkl/mod.pkl`). One `pkl eval` renders every loader manifest: `fabric.mod.json`, `quilt.mod.json`, `neoforge.mods.toml`, and the Mixin JSON files. You never hand-edit a loader manifest again.
+- **Write to common, not to a loader.** All your code lives in `common/`, compiled against vanilla. Each loader gets a tiny Java shim that does nothing but hand off to common. Adding behavior feels like making a mod for a single loader.
+- **Mixins are the only thing that touches the game, declared once.** Because you target vanilla, a Mixin written once applies on every loader.
+- **Pick your language.** Java, Kotlin, Scala, and Groovy are all first-class in `common`. Use one, use all four. (Clojure works for logic too; see `DESIGN.md`.)
 
-## Project layout
+Read `DESIGN.md` for the full rationale and the trade-offs.
 
-It's a Gradle multi-project build with three subprojects.
+## Requirements
 
-```
-<modid>/
-├── common/      # all the mod logic, built against vanilla only
-│   └── src/
-│       ├── main/    # server-safe code
-│       └── client/  # client-only code
-├── fabric/      # Fabric loader shim
-├── neoforge/    # NeoForge loader shim
-├── gradle.properties
-└── settings.gradle.kts
-```
-
-Everything you write goes in `common`. The `fabric` and `neoforge` projects hold no mod logic of their own; they pull in `common` and add the loader-specific wiring on top.
-
-`common` and `fabric` both carry `main` and `client` source sets, each with `java/`, `kotlin/`, `scala/`, and `resources/`. `neoforge` only has `main`. Its client mixin config still ships, it just sits in `main/resources` next to the common one.
-
-Default versions: Minecraft 26.1.2, Java 25, Kotlin 2.4.0, Scala 3.8.3, Fabric Loader 0.19.3, NeoForge 26.1.2.73. They all live in `gradle.properties`, so you bump them in one place.
-
-## Building and running
-
-You need Java 25. The script writes `gradle-wrapper.properties` but not the `gradlew` scripts or the wrapper jar, since those are binaries it can't generate. So run `gradle wrapper` once in the project first, or use a Gradle 9.4 install you already have.
+The repo ships a Nix flake with everything pinned (Java 25, Pkl, Gradle). With Nix:
 
 ```bash
-gradle wrapper            # first time only
+nix develop
+```
+
+drops you into a shell with the right Java, Pkl, and Gradle on PATH. No Nix? Install Java 25, Pkl 0.31+, and Gradle 9.4+ yourself.
+
+## Quick start
+
+```bash
+nix develop                                # or bring your own Java 25 / Pkl / Gradle
+pkl eval -m build/generated pkl/mod.pkl    # render the loader manifests
+./gradlew build                            # build every loader
+```
+
+Run the game:
+
+```bash
 ./gradlew :fabric:runClient
-./gradlew :fabric:runServer
 ./gradlew :neoforge:runClient
-./gradlew :neoforge:runServer    # starts with --nogui
+./gradlew :quilt:runClient     # quilt is optional, see below
+./gradlew :fabric:runServer
 ```
 
-## How the languages fit together
+## Editing your mod's identity
 
-Inside each source set Java compiles first, Kotlin next, Scala last. `common/build.gradle.kts` spells it out:
+Everything that describes the mod lives in `pkl/mod.pkl`:
 
-```kotlin
-tasks.named("compileScala")       { dependsOn("compileKotlin", "compileJava") }
-tasks.named("compileClientScala") { dependsOn("compileClientKotlin", "compileClientJava") }
+```pkl
+amends "Mod.pkl"
+
+id = "modid"
+group = "com.example.modid"
+version = "1.0.0"
+name = "Modid"
+authors = new { "yourname" }
+license = "MIT"
+// ...mc + loader versions, mixin lists
 ```
 
-So Scala sees everything Java and Kotlin built. The other two don't see Scala. The plan is to keep Kotlin as the main language, drop into Scala for the data-heavy work and draw calls, and reach for Java only when a binding is awkward anywhere else.
+Change a value, run `pkl eval -m build/generated pkl/mod.pkl`, and all five manifests regenerate. The output lands in `build/generated/` (gitignored) and the build copies each file into the right loader's resources.
 
-## How the loaders find the mod
+## Registering a mixin
 
-Both loaders use [Kotori316's SLP](https://github.com/Kotori316/SLP) so the entrypoints can be Scala. On Fabric, `fabric.mod.json` sets the `kotori_scala` adapter and points at `ModidFabric` and `ModidClientFabric`. On NeoForge, `neoforge.mods.toml` sets `modLoader = "kotori_scala"` and `modEntry = "...ModidNeoForge"`.
+Drop your Mixin class in `common/src/main/java/.../mixin/` (or `.../mixin/client/` for client-only), then add its entry to the mixin lists in `pkl/mod.pkl` and re-run `pkl eval`. That one change rewrites `modid.mixins.json` and `modid.client.mixins.json`, and every loader picks them up. You register a mixin once, not once per loader.
 
-`@Mod` is a NeoForge Java annotation and it wants a constant. `MOD_ID` is a Scala 3 `inline val`, so the compiler drops in the string literal before the annotation processor ever looks at it.
+## Layout
 
-The entrypoints stay tiny:
+```
+.
+├── flake.nix              # dev shell: Java 25, Pkl, Gradle
+├── pkl/
+│   ├── Mod.pkl            # schema: the shape of a mod
+│   └── mod.pkl            # your mod's actual values
+├── example-template/
+│   └── modid/             # example output; "modid" is the placeholder name
+│       ├── common/        # all your code + mixins, vanilla-only
+│       ├── fabric/        # Java shim
+│       ├── neoforge/      # Java shim
+│       └── quilt/         # Java shim (optional)
+└── new-mc-mod.sh          # scaffold a fresh project
+```
 
-- `ModidFabric.onInitialize` calls `ModidCommon.init()`, and `ModidClientFabric.onInitializeClient` calls `ModidClientCommon.init()`.
-- `ModidNeoForge` is a class that takes `(modBus: IEventBus, dist: Dist)`. Its constructor calls `ModidCommon.init()`, then `ModidClientCommon.init()` when `dist` is `Dist.CLIENT`. One entry handles both sides.
+Everything you write goes in `common`. The loader projects hold no mod logic of their own; they pull in `common` and add the loader wiring on top.
 
-From there you're running inside `common`. Anything Kotlin registered is already compiled and on the classpath, so Scala calls straight into it. Mixins go in the `java/` roots where the loader's mixin framework looks for them.
+## Languages and compile order
+
+Inside each source set Java compiles first, Kotlin next, Scala last, so Scala sees the Java and Kotlin classes. Groovy fits the same model. Write the loader shims in Java (they're a few lines each), then write everything else in whatever you reach for.
+
+## Loaders
+
+Fabric and NeoForge are the primary targets. Quilt is supported but optional: it's a runtime choice. If Quilt gives you trouble, skip it, the same common code still runs on Fabric and NeoForge.
+
+## Versions
+
+| Tool | Version |
+|---|---|
+| Minecraft | 26.1.2 |
+| Java | 25 |
+| Gradle | 9.4 |
+| Fabric Loader | 0.19.3 |
+| NeoForge | 26.1.2.73 |
+| Quilt Loader | 0.29.0 |
+| Kotlin | 2.4.0 |
+| Scala | 3.8.3 |
+
+Manifest versions live in `pkl/mod.pkl`; build coordinates live in `gradle.properties`.
+
+## License
+
+MIT. See `LICENSE`.
