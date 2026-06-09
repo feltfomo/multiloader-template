@@ -6,7 +6,7 @@
 ///
 /// Add a mixin by adding its class name to `commonMixins` / `clientMixins`
 /// in mod.pkl. It lands in every loader's config at once. You never hand-edit
-/// fabric.mod.json, quilt.mod.json, or neoforge.mods.toml.
+/// fabric.mod.json or neoforge.mods.toml.
 open module Mod
 
 id: String(matches(Regex(#"[a-z][a-z0-9_]*"#)))
@@ -21,7 +21,6 @@ mcVersion: String
 javaVersion: Int = 25
 
 fabricLoaderVersion: String
-quiltLoaderVersion: String
 neoVersion: String
 
 hasClient: Boolean = true
@@ -34,8 +33,6 @@ clientMixins: Listing<String> = new {}
 // Always Java, so no language adapter dependency is needed.
 fabricEntry: String = group + ".fabric.FabricEntry"
 fabricClientEntry: String = group + ".fabric.FabricClientEntry"
-quiltEntry: String = group + ".quilt.QuiltEntry"
-quiltClientEntry: String = group + ".quilt.QuiltClientEntry"
 
 // ---------- derived manifests (do not edit) ----------
 
@@ -67,39 +64,6 @@ local fabricMod: Dynamic = new {
     fabricloader = ">=\(module.fabricLoaderVersion)"
     minecraft = "~\(module.mcVersion)"
     java = ">=\(module.javaVersion)"
-  }
-}
-
-local quiltMod: Dynamic = new {
-  schema_version = 1
-  quilt_loader = new Dynamic {
-    group = module.group
-    id = module.id
-    version = module.version
-    metadata = new Dynamic {
-      name = module.name
-      description = module.description
-      contributors = new Mapping {
-        for (a in module.authors) {
-          [a] = "Owner"
-        }
-      }
-      license = module.license
-    }
-    entrypoints = new Dynamic {
-      init = new Listing { module.quiltEntry }
-      when (module.hasClient) {
-        client_init = new Listing { module.quiltClientEntry }
-      }
-    }
-    depends = new Listing {
-      new Dynamic { id = "quilt_loader"; versions = ">=\(module.quiltLoaderVersion)" }
-      new Dynamic { id = "minecraft"; versions = "~\(module.mcVersion)" }
-    }
-  }
-  mixin = new Listing {
-    "\(module.id).mixins.json"
-    when (module.hasClient) { "\(module.id).client.mixins.json" }
   }
 }
 
@@ -161,10 +125,6 @@ output {
   files {
     ["fabric/fabric.mod.json"] {
       value = fabricMod
-      renderer = new JsonRenderer {}
-    }
-    ["quilt/quilt.mod.json"] {
-      value = quiltMod
       renderer = new JsonRenderer {}
     }
     ["common/\(module.id).mixins.json"] {
