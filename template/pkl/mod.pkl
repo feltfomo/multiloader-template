@@ -1,19 +1,150 @@
-/// Your mod. Edit these fields, then regenerate manifests:
-///   pkl eval -m build/generated pkl/mod.pkl
-amends "Mod.pkl"
+// Single source of truth for this multiloader mod.
+//
+// Edit the fields under EDIT THIS. Everything below the machinery line is the
+// schema (type + value constraints) and the renderers that turn these fields
+// into fabric.mod.json, neoforge.mods.toml, and the mixin configs.
+//
+// buildSrc reads the top fields at Gradle configure time; the manifests are
+// rendered by the :generatePklConfigs task. You never hand-edit a loader
+// manifest -- add a mixin class to commonMixins / clientMixins and it lands
+// in every loader at once.
 
-id = "modid"
-name = "Modid"
-version = "1.0.0"
-group = "com.example.modid"
-authors = new { "yourname" }
-license = "MIT"
-description = "A multiloader example built from one Pkl source."
+// ============================ EDIT THIS ============================
 
-mcVersion = "26.1.2"
-fabricLoaderVersion = "0.19.3"
-neoVersion = "26.1.2.73"
+id: String(matches(Regex(#"[a-z][a-z0-9_]*"#))) = "modid"
+name: String = "Modid"
+version: String = "1.0.0"
+group: String(matches(Regex(#"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*"#))) = "com.example.modid"
+authors: Listing<String> = new { "yourname" }
+license: String = "MIT"
+description: String = "A multiloader example built from one Pkl source."
+
+mcVersion: String = "26.1.2"
+fabricLoaderVersion: String = "0.19.3"
+neoVersion: String = "26.1.2.73"
+
+// Does this mod have a client side? Set false for a server-only mod.
+hasClient: Boolean = true
 
 // Add mixin class names here; they propagate to every loader.
-commonMixins = new {}
-clientMixins = new { "TitleScreenScalaMixin" }
+commonMixins: Listing<String> = new {}
+clientMixins: Listing<String> = new { "TitleScreenScalaMixin" }
+
+// ============================ MACHINERY ============================
+// You should not need to edit anything below this line.
+
+javaVersion: Int = 25
+
+mixinPackage: String = group + ".mixin"
+
+// Loader entrypoints are tiny Java shims that call common init().
+// Always Java, so no language adapter dependency is needed.
+fabricEntry: String = group + ".fabric.FabricEntry"
+fabricClientEntry: String = group + ".fabric.FabricClientEntry"
+
+// ---------- derived manifests ----------
+
+local fabricMod: Dynamic = new {
+  schemaVersion = 1
+  id = module.id
+  version = module.version
+  name = module.name
+  description = module.description
+  authors = module.authors
+  license = module.license
+  environment = "*"
+  entrypoints = new Dynamic {
+    main = new Listing { module.fabricEntry }
+    when (module.hasClient) {
+      client = new Listing { module.fabricClientEntry }
+    }
+  }
+  mixins = new Listing {
+    "\(module.id).mixins.json"
+    when (module.hasClient) {
+      new Dynamic {
+        config = "\(module.id).client.mixins.json"
+        environment = "client"
+      }
+    }
+  }
+  depends = new Dynamic {
+    fabricloader = ">=\(module.fabricLoaderVersion)"
+    minecraft = "~\(module.mcVersion)"
+    java = ">=\(module.javaVersion)"
+  }
+}
+
+local mixinsMain: Dynamic = new {
+  required = true
+  ["package"] = module.mixinPackage
+  compatibilityLevel = "JAVA_\(module.javaVersion)"
+  mixins = module.commonMixins
+  injectors = new Dynamic { defaultRequire = 1 }
+}
+
+local mixinsClient: Dynamic = new {
+  required = true
+  ["package"] = module.mixinPackage + ".client"
+  compatibilityLevel = "JAVA_\(module.javaVersion)"
+  mixins = module.clientMixins
+  injectors = new Dynamic { defaultRequire = 1 }
+}
+
+// Pkl has no built-in TOML renderer. A JSON-quoted string is a valid TOML
+// basic string, so we reuse JsonRenderer to escape values correctly.
+local function tstr(s: String): String = (new JsonRenderer {}).renderValue(s)
+
+local neoToml: String = (new Listing {
+  "modLoader = \(tstr("javafml"))"
+  "loaderVersion = \(tstr("[1,)"))"
+  "license = \(tstr(module.license))"
+  ""
+  "[[mods]]"
+  "  modId = \(tstr(module.id))"
+  "  version = \(tstr(module.version))"
+  "  displayName = \(tstr(module.name))"
+  "  description = \(tstr(module.description))"
+  "  authors = \(tstr(module.authors.toList().join(", ")))"
+  ""
+  "[[mixins]]"
+  "  config = \(tstr("\(module.id).mixins.json"))"
+  when (module.hasClient) {
+    "[[mixins]]"
+    "  config = \(tstr("\(module.id).client.mixins.json"))"
+  }
+  ""
+  "[[dependencies.\(module.id)]]"
+  "  modId = \(tstr("neoforge"))"
+  "  type = \(tstr("required"))"
+  "  versionRange = \(tstr("[\(module.neoVersion),)"))"
+  "  ordering = \(tstr("NONE"))"
+  "  side = \(tstr("BOTH"))"
+  ""
+  "[[dependencies.\(module.id)]]"
+  "  modId = \(tstr("minecraft"))"
+  "  type = \(tstr("required"))"
+  "  versionRange = \(tstr("[\(module.mcVersion),)"))"
+  "  ordering = \(tstr("NONE"))"
+  "  side = \(tstr("BOTH"))"
+}).toList().join("\n") + "\n"
+
+output {
+  files {
+    ["fabric/fabric.mod.json"] {
+      value = fabricMod
+      renderer = new JsonRenderer {}
+    }
+    ["common/\(module.id).mixins.json"] {
+      value = mixinsMain
+      renderer = new JsonRenderer {}
+    }
+    ["common/\(module.id).client.mixins.json"] {
+      value = mixinsClient
+      renderer = new JsonRenderer {}
+    }
+    ["neoforge/neoforge.mods.toml"] {
+      text = neoToml
+    }
+  }
+}

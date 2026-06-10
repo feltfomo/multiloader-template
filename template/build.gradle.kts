@@ -30,7 +30,6 @@ subprojects {
 val generatePklConfigs by tasks.registering(Exec::class) {
     workingDir = rootDir
     commandLine("pkl", "eval", "-m", "build/generated", "pkl/mod.pkl")
-    inputs.file("pkl/Mod.pkl")
     inputs.file("pkl/mod.pkl")
     outputs.dir(layout.buildDirectory.dir("generated"))
 }
