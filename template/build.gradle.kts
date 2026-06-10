@@ -1,3 +1,5 @@
+import mod.ModConfig
+
 // Root build script. Shared config + the Pkl generation step.
 // All real code lives in common/ and the loader modules.
 
@@ -13,9 +15,13 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "2.4.0" apply false
 }
 
+// Read identity once from pkl/mod.pkl (see buildSrc) and hand it to every
+// subproject. gradle.properties no longer owns these.
+val modConfig = ModConfig.load(rootDir.resolve("pkl/mod.pkl"))
+
 subprojects {
-    group = providers.gradleProperty("mod_group").get()
-    version = providers.gradleProperty("mod_version").get()
+    group = modConfig.group
+    version = modConfig.version
 }
 
 // Single source of truth: pkl/mod.pkl renders every loader manifest + mixin
