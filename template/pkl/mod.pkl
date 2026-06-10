@@ -36,8 +36,8 @@ scala: Boolean = false
 scalaVersion: String = "3.8.3"
 
 // Add mixin class names here; they propagate to every loader.
-commonMixins: Listing<String> = new {}
-clientMixins: Listing<String> = new {}
+commonMixins: Listing<String> = new { "BootstrapMixin" }
+clientMixins: Listing<String> = new { "TitleScreenMixin" }
 
 // ============================ MACHINERY ============================
 // You should not need to edit anything below this line.
