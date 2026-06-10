@@ -8,7 +8,7 @@
 // twice and you hit "LoomGradleExtensionImpl_Decorated cannot be cast to
 // LoomGradleExtension". Subprojects apply these version-less.
 plugins {
-    id("net.fabricmc.fabric-loom") version "1.16-SNAPSHOT" apply false
+    id("net.fabricmc.fabric-loom") version "1.17.3" apply false
     id("net.neoforged.moddev") version "2.0.141" apply false
     id("org.jetbrains.kotlin.jvm") version "2.4.0" apply false
 }

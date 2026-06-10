@@ -15,6 +15,8 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
+    // No mappings line. MC 26.1 ships unobfuscated, so Loom remaps nothing and
+    // rejects any mappings dependency, officialMojangMappings() included.
 
     // Compile-only: pulls Sponge Mixin onto common's classpath so mixins can be
     // authored here (in any JVM lang) without coupling common to a runtime loader.
