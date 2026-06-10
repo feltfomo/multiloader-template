@@ -3,18 +3,20 @@ import mod.ModConfig
 // Compiled against vanilla Minecraft only. No loader APIs in here.
 plugins {
     id("java-library")
-    id("scala")
-    id("org.jetbrains.kotlin.jvm")
     id("net.fabricmc.fabric-loom")
 }
 
 // Minecraft + loader versions come from pkl/mod.pkl via buildSrc (one source).
-// Scala + Kotlin toolchain versions still live in gradle.properties.
 val modConfig = ModConfig.load(rootDir.resolve("pkl/mod.pkl"))
-val minecraftVersion: String     = modConfig.mcVersion
-val fabricLoaderVersion: String  = modConfig.fabricLoaderVersion
-val scalaVersion: String         = providers.gradleProperty("scala_version").get()
-val kotlinVersion: String        = providers.gradleProperty("kotlin_version").get()
+val minecraftVersion: String    = modConfig.mcVersion
+val fabricLoaderVersion: String = modConfig.fabricLoaderVersion
+
+// Languages are opt-in (see pkl/mod.pkl). Java is always on; Kotlin and Scala
+// join common/ on demand. The kotlin plugin is declared apply-false in the root
+// build so every module shares one classloader with Loom; scala is a core
+// Gradle plugin and needs no such ceremony.
+if (modConfig.kotlin) pluginManager.apply("org.jetbrains.kotlin.jvm")
+if (modConfig.scala) pluginManager.apply("scala")
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
@@ -28,14 +30,18 @@ dependencies {
     // Both Fabric and NeoForge supply Mixin at runtime, so this never ships.
     compileOnly("net.fabricmc:fabric-loader:$fabricLoaderVersion")
 
-    // Scala 3 as a first-class language for common code + mixins.
-    // Bundled into each loader jar downstream (fabric `include`, neoforge `jarJar`).
-    implementation("org.scala-lang:scala3-library_3:$scalaVersion")
+    // Scala 3 for common code + mixins, only when scala is enabled (pkl/mod.pkl).
+    // The runtime is bundled into each loader jar downstream (fabric `include`,
+    // neoforge `jarJar`); version comes from pkl.
+    if (modConfig.scala) {
+        implementation("org.scala-lang:scala3-library_3:${modConfig.scalaVersion}")
+    }
 
     // Kotlin as an entry-point / common-logic language. Not for mixins — Kotlin's
     // compiled output (synthetic classes, null checks) fights Mixin's bytecode model.
-    // Bundled per loader downstream the same way Scala is.
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+    // The runtime is bundled per loader downstream the same way Scala is, but the
+    // kotlin plugin (applied above only when enabled) already puts kotlin-stdlib
+    // on this module's classpath, so there's nothing to declare here.
 }
 
 sourceSets {

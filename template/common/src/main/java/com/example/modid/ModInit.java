@@ -1,6 +1,5 @@
 package com.example.modid;
 
-import com.example.modid.kotlin.KotlinGreeter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +13,5 @@ public final class ModInit {
 
     public static void init() {
         LOGGER.info("{} common init", MOD_ID);
-        KotlinGreeter.greet();
     }
 }

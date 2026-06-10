@@ -14,6 +14,9 @@ data class ModConfig(
     val mcVersion: String,
     val fabricLoaderVersion: String,
     val neoVersion: String,
+    val kotlin: Boolean,
+    val scala: Boolean,
+    val scalaVersion: String,
 ) {
     companion object {
         fun load(modPkl: File): ModConfig =
@@ -26,6 +29,9 @@ data class ModConfig(
                     mcVersion = module.get("mcVersion") as String,
                     fabricLoaderVersion = module.get("fabricLoaderVersion") as String,
                     neoVersion = module.get("neoVersion") as String,
+                    kotlin = module.get("kotlin") as Boolean,
+                    scala = module.get("scala") as Boolean,
+                    scalaVersion = module.get("scalaVersion") as String,
                 )
             }
     }

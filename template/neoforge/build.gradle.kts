@@ -1,4 +1,5 @@
 import mod.ModConfig
+import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
 
 plugins {
     id("java-library")
@@ -6,11 +7,12 @@ plugins {
 }
 
 // Minecraft + loader versions come from pkl/mod.pkl via buildSrc (one source).
-// Scala + Kotlin toolchain versions still live in gradle.properties.
 val modConfig = ModConfig.load(rootDir.resolve("pkl/mod.pkl"))
-val neoVersion: String   = modConfig.neoVersion
-val scalaVersion: String = providers.gradleProperty("scala_version").get()
-val kotlinVersion: String = providers.gradleProperty("kotlin_version").get()
+val neoVersion: String = modConfig.neoVersion
+
+// When Kotlin is enabled, apply the plugin here too so the jar-in-jar coordinate
+// below can read the version straight from the plugin (one source, no sync).
+if (modConfig.kotlin) pluginManager.apply("org.jetbrains.kotlin.jvm")
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
@@ -39,14 +41,18 @@ dependencies {
     compileOnly(commonSourceSets.getByName("main").output)
     compileOnly(commonSourceSets.getByName("client").output)
 
-    // common is Scala now, so its runtime must be present in dev and bundled
-    // into the single neoforge jar (jarJar) for production.
-    implementation("org.scala-lang:scala3-library_3:$scalaVersion")
-    jarJar("org.scala-lang:scala3-library_3:$scalaVersion")
-
-    // Kotlin runtime: same treatment so Kotlin common code runs in dev and ships.
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
-    jarJar("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+    // Each language runtime must be present in dev and bundled into the single
+    // neoforge jar (jarJar) for production -- but only when that language is on.
+    // Scala version from pkl; Kotlin version from the applied plugin.
+    if (modConfig.scala) {
+        implementation("org.scala-lang:scala3-library_3:${modConfig.scalaVersion}")
+        jarJar("org.scala-lang:scala3-library_3:${modConfig.scalaVersion}")
+    }
+    if (modConfig.kotlin) {
+        val kotlinStdlib = "org.jetbrains.kotlin:kotlin-stdlib:${getKotlinPluginVersion()}"
+        implementation(kotlinStdlib)
+        jarJar(kotlinStdlib)
+    }
 }
 
 // NeoForge ships a single jar, so common has to ride inside it.

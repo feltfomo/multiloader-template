@@ -26,9 +26,18 @@ neoVersion: String = "26.1.2.73"
 // Does this mod have a client side? Set false for a server-only mod.
 hasClient: Boolean = true
 
+// Languages. Java is always on. Flip a flag to add Kotlin or Scala to common/;
+// the build scripts apply the plugin and bundle the runtime only when true.
+kotlin: Boolean = false
+scala: Boolean = false
+
+// Scala runtime coordinate (only used when scala is true). Kotlin has no version
+// here -- the kotlin plugin in the root build owns its version.
+scalaVersion: String = "3.8.3"
+
 // Add mixin class names here; they propagate to every loader.
 commonMixins: Listing<String> = new {}
-clientMixins: Listing<String> = new { "TitleScreenScalaMixin" }
+clientMixins: Listing<String> = new {}
 
 // ============================ MACHINERY ============================
 // You should not need to edit anything below this line.
