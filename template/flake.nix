@@ -26,9 +26,9 @@
           ];
         in {
           default = pkgs.mkShell {
-            # Use the wrapper (./gradlew, pinned 9.4.1), not a system gradle:
+            # Use the wrapper (./gradlew, pinned 9.5.1), not a system gradle:
             # nixpkgs' gradle is a different version and dies on JDK 25.
-            packages = [ jdk pkgs.pkl ];
+            packages = [ jdk ];
             JAVA_HOME = "${jdk}";
             shellHook = ''
               echo "multiloader dev shell ready"
@@ -37,7 +37,6 @@
                 export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath runtimeLibs}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
               ''}
               java -version
-              pkl --version
             '';
           };
         });
