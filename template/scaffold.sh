@@ -38,6 +38,26 @@ prompt() {
   printf -v "$__var" "%s" "${__reply:-$__default}"
 }
 
+# normalize an env value (1/true/yes/y -> true, anything else -> false)
+truthy() { case "$1" in 1|true|TRUE|yes|YES|y|Y) printf '%s' true ;; *) printf '%s' false ;; esac; }
+
+# yesno VAR "label" "default(true|false)"  (uses default when non-interactive)
+yesno() {
+  local __var="$1" __label="$2" __default="$3" __reply="" __hint="y/N"
+  [ "$__default" = "true" ] && __hint="Y/n"
+  if [ "$NONINTERACTIVE" = "true" ] || [ ! -t 0 ]; then
+    printf -v "$__var" "%s" "$__default"
+    return
+  fi
+  read -r -p "$__label [$__hint]: " __reply || true
+  case "$__reply" in
+    [yY]|[yY][eE][sS]) printf -v "$__var" "true" ;;
+    [nN]|[nN][oO])     printf -v "$__var" "false" ;;
+    "")                printf -v "$__var" "%s" "$__default" ;;
+    *)                 printf -v "$__var" "false" ;;
+  esac
+}
+
 # seed from env so the flake app / new-mc-mod.sh can drive this headlessly
 MOD_ID="${SCAFFOLD_ID:-}"
 MOD_GROUP="${SCAFFOLD_GROUP:-}"
@@ -46,6 +66,8 @@ MOD_VERSION="${SCAFFOLD_VERSION:-1.0.0}"
 MOD_AUTHORS="${SCAFFOLD_AUTHORS:-yourname}"
 MOD_LICENSE="${SCAFFOLD_LICENSE:-MIT}"
 MOD_DESC="${SCAFFOLD_DESC:-A Minecraft mod.}"
+MOD_KOTLIN="${SCAFFOLD_KOTLIN:-}"
+MOD_SCALA="${SCAFFOLD_SCALA:-}"
 
 [ -z "$MOD_ID" ]    && prompt MOD_ID    "mod id (lowercase)" "mymod"
 [ -z "$MOD_GROUP" ] && prompt MOD_GROUP "group / package"    "com.example.$MOD_ID"
@@ -61,6 +83,10 @@ if [ "$NONINTERACTIVE" != "true" ] && [ -t 0 ]; then
   prompt MOD_DESC    "description" "$MOD_DESC"
 fi
 [ -z "$MOD_NAME" ] && MOD_NAME="$default_name"
+
+# languages: java is always on; kotlin/scala are opt-in (env or prompt, default off)
+if [ -n "$MOD_KOTLIN" ]; then MOD_KOTLIN="$(truthy "$MOD_KOTLIN")"; else yesno MOD_KOTLIN "add kotlin support" "false"; fi
+if [ -n "$MOD_SCALA" ];  then MOD_SCALA="$(truthy "$MOD_SCALA")";   else yesno MOD_SCALA  "add scala support"  "false"; fi
 
 # validate the structural identifiers (these end up in package + manifest)
 if ! printf '%s' "$MOD_ID" | grep -Eq '^[a-z][a-z0-9_]*$'; then
@@ -79,6 +105,8 @@ echo "  group   $MOD_GROUP"
 echo "  version $MOD_VERSION"
 echo "  authors $MOD_AUTHORS"
 echo "  license $MOD_LICENSE"
+echo "  kotlin  $MOD_KOTLIN"
+echo "  scala   $MOD_SCALA"
 
 # escape a string for the replacement side of  sed s|...|REPL|
 sed_repl() { printf '%s' "$1" | sed -e 's/[&|\]/\\&/g'; }
@@ -130,6 +158,8 @@ if [ -f pkl/mod.pkl ]; then
     -e "s|^version = .*|version = \"$R_VERSION\"|" \
     -e "s|^license = .*|license = \"$R_LICENSE\"|" \
     -e "s|^description = .*|description = \"$R_DESC\"|" \
+    -e "s|^kotlin: Boolean = .*|kotlin: Boolean = $MOD_KOTLIN|" \
+    -e "s|^scala: Boolean = .*|scala: Boolean = $MOD_SCALA|" \
     pkl/mod.pkl
 fi
 
@@ -158,6 +188,16 @@ find . -depth -name "*${OLD_ID}*" \
   [ "$b" = "$nb" ] && continue
   mv "$p" "$d/$nb"
 done
+
+# drop the sample sources for languages you didn't pick. scope to the mod
+# modules only -- buildSrc/src/main/kotlin is the build itself, never touch it.
+prune_lang() {
+  for m in common fabric neoforge; do
+    find "$m/src" -type d -name "$1" -prune -print0 2>/dev/null | xargs -0 -r rm -rf
+  done
+}
+[ "$MOD_KOTLIN" = "true" ] || prune_lang kotlin
+[ "$MOD_SCALA" = "true" ]  || prune_lang scala
 
 # the gradle wrapper loses its +x bit when the template round-trips through
 # Notion sync (pages don't store unix permissions), so restore it here.
