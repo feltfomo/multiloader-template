@@ -159,6 +159,10 @@ find . -depth -name "*${OLD_ID}*" \
   mv "$p" "$d/$nb"
 done
 
+# the gradle wrapper loses its +x bit when the template round-trips through
+# Notion sync (pages don't store unix permissions), so restore it here.
+chmod +x gradlew 2>/dev/null || true
+
 echo "done. removing scaffold.sh"
 rm -f -- "$ROOT/scaffold.sh"
 

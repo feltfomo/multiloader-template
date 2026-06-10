@@ -9,9 +9,9 @@
 #   ./new-mc-mod.sh nexus fomo.dev.nexus "Nexus"
 #
 # No clone? Use Nix instead (copies only tracked files, always clean):
-#   nix run github:OWNER/REPO#new -- nexus fomo.dev.nexus "Nexus"
-#   nix flake new -t github:OWNER/REPO ./nexus && cd nexus && ./scaffold.sh
-#   npx degit OWNER/REPO/template nexus && cd nexus && ./scaffold.sh
+#   nix run github:feltfomo/multiloader-template#new -- nexus fomo.dev.nexus "Nexus"
+#   nix flake new -t github:feltfomo/multiloader-template ./nexus && cd nexus && ./scaffold.sh
+#   npx degit feltfomo/multiloader-template/template nexus && cd nexus && ./scaffold.sh
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

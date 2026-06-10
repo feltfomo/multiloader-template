@@ -20,13 +20,15 @@
           # client crashes at window/GL init without them. Linux only.
           runtimeLibs = with pkgs; [
             libGL glfw openal libpulseaudio vulkan-loader flite
-            xorg.libX11 xorg.libXcursor xorg.libXext xorg.libXrandr
-            xorg.libXxf86vm xorg.libXi xorg.libXrender xorg.libXtst
+            libx11 libxcursor libxext libxrandr
+            libxxf86vm libxi libxrender libxtst
             wayland libxkbcommon udev stdenv.cc.cc.lib
           ];
         in {
           default = pkgs.mkShell {
-            packages = [ jdk pkgs.gradle pkgs.pkl ];
+            # Use the wrapper (./gradlew, pinned 9.4.1), not a system gradle:
+            # nixpkgs' gradle is a different version and dies on JDK 25.
+            packages = [ jdk pkgs.pkl ];
             JAVA_HOME = "${jdk}";
             shellHook = ''
               echo "multiloader dev shell ready"

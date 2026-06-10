@@ -9,7 +9,7 @@
       forAllSystems = f:
         nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
     in {
-      # `nix flake new -t github:OWNER/REPO ./my-mod` drops the real, tested
+      # `nix flake new -t github:feltfomo/multiloader-template ./my-mod` drops the real, tested
       # template into place. Then run ./scaffold.sh to make it yours.
       templates.default = {
         path = ./template;
@@ -29,7 +29,7 @@
       templates.mod = self.templates.default;
 
       # the closest thing to `cargo new`: copy + substitute in one command.
-      #   nix run github:OWNER/REPO -- <mod_id> <group> [display name]
+      #   nix run github:feltfomo/multiloader-template -- <mod_id> <group> [display name]
       apps = forAllSystems (pkgs: {
         default = {
           type = "app";
