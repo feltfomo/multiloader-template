@@ -1,11 +1,16 @@
+import mod.ModConfig
+
 // Fabric bootstrap. Wires the common module into Fabric's loader.
 plugins {
     id("java-library")
     id("net.fabricmc.fabric-loom")
 }
 
-val minecraftVersion: String    = providers.gradleProperty("minecraft_version").get()
-val fabricLoaderVersion: String = providers.gradleProperty("fabric_loader_version").get()
+// Minecraft + loader versions come from pkl/mod.pkl via buildSrc (one source).
+// Scala + Kotlin toolchain versions still live in gradle.properties.
+val modConfig = ModConfig.load(rootDir.resolve("pkl/mod.pkl"))
+val minecraftVersion: String    = modConfig.mcVersion
+val fabricLoaderVersion: String = modConfig.fabricLoaderVersion
 val scalaVersion: String        = providers.gradleProperty("scala_version").get()
 val kotlinVersion: String       = providers.gradleProperty("kotlin_version").get()
 

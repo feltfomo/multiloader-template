@@ -1,9 +1,14 @@
+import mod.ModConfig
+
 plugins {
     id("java-library")
     id("net.neoforged.moddev")
 }
 
-val neoVersion: String   = providers.gradleProperty("neo_version").get()
+// Minecraft + loader versions come from pkl/mod.pkl via buildSrc (one source).
+// Scala + Kotlin toolchain versions still live in gradle.properties.
+val modConfig = ModConfig.load(rootDir.resolve("pkl/mod.pkl"))
+val neoVersion: String   = modConfig.neoVersion
 val scalaVersion: String = providers.gradleProperty("scala_version").get()
 val kotlinVersion: String = providers.gradleProperty("kotlin_version").get()
 
