@@ -25,6 +25,13 @@ subprojects {
     version = modConfig.version
 }
 
+// Access widener (Fabric) + access transformer (NeoForge) are rendered from one
+// pkl list. Write them at configure time into a stable dir outside build/ so the
+// loader plugins can read them on a clean build -- their inputs are wired during
+// configuration, before `clean` deletes build/. Loader modules read this dir.
+val accessGenDir = rootDir.resolve(".pkl-generated")
+if (modConfig.hasAccessWideners) modConfig.writeAccessFiles(accessGenDir)
+
 // Single source of truth: pkl/mod.pkl renders every loader manifest + mixin
 // config into build/generated. Loader modules copy what they need from there.
 // The pkl-gradle plugin evaluates pkl/mod.pkl with an embedded evaluator; no pkl binary needed.

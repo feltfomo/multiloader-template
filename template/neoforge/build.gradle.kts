@@ -21,6 +21,11 @@ val commonSourceSets = commonProject.extensions.getByType<SourceSetContainer>()
 
 neoForge {
     version = neoVersion
+    // Generated from pkl/mod.pkl's accessEntries; read from the stable dir the
+    // root build writes during configuration (clean-build safe).
+    if (modConfig.hasAccessWideners) {
+        accessTransformers.from(rootProject.file(".pkl-generated/accesstransformer.cfg"))
+    }
     runs {
         create("client") { client() }
         create("server") {
@@ -67,6 +72,11 @@ tasks.named<ProcessResources>("processResources") {
     dependsOn(":generatePklConfigs")
     from(generated.map { it.dir("neoforge") }) { into("META-INF") }
     from(generated.map { it.dir("common") })
+    // Production NeoForge reads META-INF/accesstransformer.cfg from the jar.
+    if (modConfig.hasAccessWideners) {
+        from(rootProject.file(".pkl-generated/accesstransformer.cfg")) { into("META-INF") }
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {

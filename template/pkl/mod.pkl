@@ -127,7 +127,7 @@ local mixinsClient: Dynamic = new {
 local function dotted(owner: String): String = owner.split("/").join(".")
 
 local accessWidenerLines: Listing<String> = new {
-  "accessWidener v2 named"
+  "accessWidener v2 official"
   for (e in module.accessEntries) {
     when (e.kind == "class") {
       "accessible class \(e.owner)"

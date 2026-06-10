@@ -20,6 +20,11 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 loom {
     splitEnvironmentSourceSets()
+    // Generated from pkl/mod.pkl's accessEntries; read from the stable dir the
+    // root build writes during configuration (clean-build safe).
+    if (modConfig.hasAccessWideners) {
+        accessWidenerPath.set(rootProject.file(".pkl-generated/${modConfig.id}.accesswidener"))
+    }
     mods {
         register("modid") {
             sourceSet(sourceSets.main.get())
@@ -65,6 +70,12 @@ tasks.named<ProcessResources>("processResources") {
     dependsOn(":generatePklConfigs")
     from(generated.map { it.dir("fabric") }) // fabric.mod.json
     from(generated.map { it.dir("common") }) // modid.mixins.json + modid.client.mixins.json
+    // The access widener has to ride in the jar root so Fabric applies it at
+    // runtime; Loom remaps it in place. EXCLUDE guards against a double add.
+    if (modConfig.hasAccessWideners) {
+        from(rootProject.file(".pkl-generated/${modConfig.id}.accesswidener"))
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {

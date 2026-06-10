@@ -5,6 +5,10 @@ out/
 
 # Pkl-generated manifests live under build/generated/ (covered above).
 
+# Access widener + transformer are rendered here at configure time (outside
+# build/ so a clean build can't delete them before the loaders read them).
+.pkl-generated/
+
 # ---- Minecraft / Loom / NeoForge dev runs ----
 run/
 runs/

@@ -17,7 +17,22 @@ data class ModConfig(
     val kotlin: Boolean,
     val scala: Boolean,
     val scalaVersion: String,
+    val accessWidenerText: String,
+    val accessTransformerText: String,
 ) {
+    // accessTransformerText has no header line, so a blank value means there are
+    // no access entries. Gates all the loader wiring downstream.
+    val hasAccessWideners: Boolean get() = accessTransformerText.isNotBlank()
+
+    // Write the rendered access widener + transformer into a stable dir outside
+    // build/, so a single clean+build can't delete them between the configure
+    // phase (when Loom/moddev read them) and execution.
+    fun writeAccessFiles(dir: File) {
+        dir.mkdirs()
+        File(dir, "$id.accesswidener").writeText(accessWidenerText)
+        File(dir, "accesstransformer.cfg").writeText(accessTransformerText)
+    }
+
     companion object {
         fun load(modPkl: File): ModConfig =
             Evaluator.preconfigured().use { evaluator ->
@@ -32,6 +47,8 @@ data class ModConfig(
                     kotlin = module.get("kotlin") as Boolean,
                     scala = module.get("scala") as Boolean,
                     scalaVersion = module.get("scalaVersion") as String,
+                    accessWidenerText = module.get("accessWidenerText") as String,
+                    accessTransformerText = module.get("accessTransformerText") as String,
                 )
             }
     }
