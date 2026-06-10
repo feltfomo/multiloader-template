@@ -1,6 +1,18 @@
 // Root build script. Shared config + the Pkl generation step.
 // All real code lives in common/ and the loader modules.
 
+// Declare every build-script plugin here with `apply false` so they all load
+// from ONE classloader shared by the subprojects. Fabric Loom is fragile about
+// this: if Loom and the Kotlin plugin resolve in separate plugin scopes (e.g.
+// both declared in settings pluginManagement), Loom's extension class loads
+// twice and you hit "LoomGradleExtensionImpl_Decorated cannot be cast to
+// LoomGradleExtension". Subprojects apply these version-less.
+plugins {
+    id("net.fabricmc.fabric-loom") version "1.16-SNAPSHOT" apply false
+    id("net.neoforged.moddev") version "2.0.141" apply false
+    id("org.jetbrains.kotlin.jvm") version "2.4.0" apply false
+}
+
 subprojects {
     group = providers.gradleProperty("mod_group").get()
     version = providers.gradleProperty("mod_version").get()

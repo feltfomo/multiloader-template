@@ -11,11 +11,6 @@ url = uri("https://maven.neoforged.net/releases")
 mavenCentral()
 gradlePluginPortal()
 }
-
-plugins {
-id("net.fabricmc.fabric-loom") version "1.16-SNAPSHOT"
-id("net.neoforged.moddev") version "2.0.141"
-}
 }
 
 plugins {

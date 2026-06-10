@@ -16,4 +16,4 @@ neoVersion = "26.1.2.73"
 
 // Add mixin class names here; they propagate to every loader.
 commonMixins = new {}
-clientMixins = new {}
+clientMixins = new { "TitleScreenScalaMixin" }

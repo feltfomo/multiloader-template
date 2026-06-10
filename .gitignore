@@ -38,4 +38,4 @@ bin/
 Thumbs.db
 
 # ---- Keep the Gradle wrapper jar ----
-!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.jar.kotlin/

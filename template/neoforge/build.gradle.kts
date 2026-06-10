@@ -3,7 +3,9 @@ plugins {
     id("net.neoforged.moddev")
 }
 
-val neoVersion: String = providers.gradleProperty("neo_version").get()
+val neoVersion: String   = providers.gradleProperty("neo_version").get()
+val scalaVersion: String = providers.gradleProperty("scala_version").get()
+val kotlinVersion: String = providers.gradleProperty("kotlin_version").get()
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
@@ -31,6 +33,15 @@ neoForge {
 dependencies {
     compileOnly(commonSourceSets.getByName("main").output)
     compileOnly(commonSourceSets.getByName("client").output)
+
+    // common is Scala now, so its runtime must be present in dev and bundled
+    // into the single neoforge jar (jarJar) for production.
+    implementation("org.scala-lang:scala3-library_3:$scalaVersion")
+    jarJar("org.scala-lang:scala3-library_3:$scalaVersion")
+
+    // Kotlin runtime: same treatment so Kotlin common code runs in dev and ships.
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+    jarJar("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
 }
 
 // NeoForge ships a single jar, so common has to ride inside it.
