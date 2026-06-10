@@ -11,6 +11,7 @@ plugins {
 val modConfig = ModConfig.load(rootDir.resolve("pkl/mod.pkl"))
 val minecraftVersion: String    = modConfig.mcVersion
 val fabricLoaderVersion: String = modConfig.fabricLoaderVersion
+val fabricApiVersion: String    = modConfig.fabricApiVersion
 
 // When Kotlin is enabled, apply the plugin here too so the jar-in-jar coordinate
 // below can read the version straight from the plugin (one source, no sync).
@@ -33,6 +34,17 @@ loom {
     }
 }
 
+// Data generation (Fabric API). Creates the `runDatagen` task + a "Data
+// Generation" run config. Generated files land in src/main/generated, which Loom
+// adds to the main sourceset's resources, so they ride into the jar. Gated on the
+// pkl datagen flag.
+if (modConfig.datagen) {
+    fabricApi {
+        configureDataGeneration {
+        }
+    }
+}
+
 val commonProject = project(":common")
 val commonSourceSets = commonProject.extensions.getByType<SourceSetContainer>()
 
@@ -41,6 +53,15 @@ dependencies {
     implementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
     implementation(commonProject)
     "clientImplementation"(commonSourceSets.getByName("client").output)
+
+    // Fabric API, datagen-only. Non-obfuscated Minecraft has nothing to remap, so
+    // Loom never creates modImplementation -- the official 26.1 example declares
+    // fabric-api on plain implementation. Not include()'d, so it stays out of the
+    // jar and fabric.mod.json never lists it under depends: the shipped mod is
+    // dependency-free, fabric-api is just there to compile and run datagen.
+    if (modConfig.datagen) {
+        implementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
+    }
 
     // Bundle each language runtime inside the fabric jar (jar-in-jar), but only
     // when that language is enabled. In dev they're already on the runtime

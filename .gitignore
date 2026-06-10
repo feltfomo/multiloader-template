@@ -5,6 +5,13 @@ out/
 
 # Pkl-generated manifests live under build/generated/ (covered above).
 
+# ---- Datagen output ----
+# runDatagen writes here (Fabric -> src/main/generated, NeoForge -> src/generated).
+# The providers are the source of truth; committing their output just drifts the
+# day someone edits a provider and forgets to regenerate. Run datagen to recreate.
+**/src/main/generated/
+**/src/generated/
+
 # Access widener + transformer are rendered here at configure time (outside
 # build/ so a clean build can't delete them before the loaders read them).
 .pkl-generated/

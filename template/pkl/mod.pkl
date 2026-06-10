@@ -23,8 +23,19 @@ mcVersion: String = "26.1.2"
 fabricLoaderVersion: String = "0.19.3"
 neoVersion: String = "26.1.2.73"
 
+// Fabric API build, matched to mcVersion. Used datagen-only on Fabric: it is not
+// bundled into the shipped jar and not declared as a runtime depend, so a built
+// mod stays dependency-free. NeoForge ships its own datagen API.
+fabricApiVersion: String = "0.151.0+26.1.2"
+
 // Does this mod have a client side? Set false for a server-only mod.
 hasClient: Boolean = true
+
+// Data generation. When true, each loader gets a datagen run (Fabric runDatagen,
+// NeoForge data run) that writes generated resources into the loader's committed
+// generated/ dir. A sample recipe provider ships as a starting point; delete it
+// or set this false to opt out.
+datagen: Boolean = true
 
 // Languages. Java is always on. Flip a flag to add Kotlin or Scala to common/;
 // the build scripts apply the plugin and bundle the runtime only when true.
@@ -68,6 +79,7 @@ class AccessEntry {
 // Always Java, so no language adapter dependency is needed.
 fabricEntry: String = group + ".fabric.FabricEntry"
 fabricClientEntry: String = group + ".fabric.FabricClientEntry"
+fabricDatagenEntry: String = group + ".fabric.datagen.FabricDataGen"
 
 // ---------- derived manifests ----------
 
@@ -87,6 +99,9 @@ local fabricMod: Dynamic = new {
     main = new Listing { module.fabricEntry }
     when (module.hasClient) {
       client = new Listing { module.fabricClientEntry }
+    }
+    when (module.datagen) {
+      ["fabric-datagen"] = new Listing { module.fabricDatagenEntry }
     }
   }
   mixins = new Listing {
