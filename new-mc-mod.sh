@@ -55,12 +55,18 @@ tar -C "$src" \
   -cf - . | tar -C "$dest" -xf -
 chmod -R u+w "$dest"
 
+# run the scaffolder through `bash`, not ./scaffold.sh. the exec bit doesn't
+# survive every distribution path (notion-sync strips it, a stray copy can too),
+# and a non-executable scaffolder fails the run instead of silently degrading
+# into a build of the untouched template -- a green that means nothing. the
+# shebang is bash anyway, so this changes nothing for a properly-permissioned
+# checkout.
 (
   cd "$dest"
   SCAFFOLD_ID="$id" SCAFFOLD_GROUP="$group" SCAFFOLD_NAME="$name" \
     SCAFFOLD_KOTLIN="${SCAFFOLD_KOTLIN:-}" SCAFFOLD_SCALA="${SCAFFOLD_SCALA:-}" \
     SCAFFOLD_DATAGEN="${SCAFFOLD_DATAGEN:-}" \
-    ./scaffold.sh
+    bash scaffold.sh
 )
 
 echo

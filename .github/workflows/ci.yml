@@ -1,0 +1,44 @@
+# Build a real scaffolded mod, not the raw template. What people actually get
+# is the output of new-mc-mod.sh + scaffold.sh, so that's what CI guards here:
+# a break in the scaffolder is as fatal as a break in the mod code, and only
+# this path catches both at once.
+#
+# One job builds every loader with a single ./mcw build, not a per-loader matrix.
+# A matrix has to read its leg through GitHub's templated expressions, and this
+# repo is authored through a Notion mirror that mangles their double-brace form,
+# so the whole workflow stays brace-free on purpose.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Temurin 25 on PATH (and JAVA_HOME), so mcw resolves it and skips its own
+      # download. Not testing the download path here on purpose: pulling 135M
+      # every run is slow and flaky, and it's one curl.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      # Caches the Gradle user home so only the first run eats the full
+      # dependency download. Also validates the wrapper jar.
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Scaffold into the runner's temp dir, outside the checkout, so the
+      # generated project can't shadow repo files. Then build every loader
+      # through mcw, which also proves the wrapper resolves a JDK and forwards.
+      - name: scaffold a throwaway mod and build it
+        run: |
+          cd "$RUNNER_TEMP"
+          bash "$GITHUB_WORKSPACE/new-mc-mod.sh" cimod dev.cimod.test "CI Mod" </dev/null
+          cd cimod
+          ./mcw build

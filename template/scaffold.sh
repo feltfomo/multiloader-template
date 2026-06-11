@@ -141,14 +141,22 @@ text_files() {
 #    replace can't corrupt the already-rewritten package string. capitalized
 #    `Modid` is the display-name placeholder (e.g. the README title); the pkl
 #    name line gets reset in step 2 too, so this just covers prose elsewhere.
+#
+#    `modid` is also a fixed attribute name in NeoForge's
+#    @EventBusSubscriber(modid = ...), not our placeholder. Rewriting it to the
+#    new id makes the annotation reference an attribute that doesn't exist and
+#    neoforge:compileJava dies. Stash that `modid =` form behind a sentinel the
+#    bare-token rule can't match (uppercase), then restore it last.
 text_files | while IFS= read -r -d '' f; do
   is_text "$f" || continue
   sed -i \
+    -e "s|\bmodid\([[:space:]]*=\)|@@KEEP_MODID@@\1|g" \
     -e "s|com\.example\.modid|$MOD_GROUP|g" \
     -e "s|com/example/modid|$MOD_GROUP_PATH|g" \
     -e "s|\bmodid\b|$MOD_ID|g" \
     -e "s|\bModid\b|$R_NAME|g" \
     -e "s|yourname|$R_AUTHORS|g" \
+    -e "s|@@KEEP_MODID@@|modid|g" \
     "$f"
 done
 
