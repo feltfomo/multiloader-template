@@ -32,9 +32,10 @@ fabricApiVersion: String = "0.151.0+26.1.2"
 hasClient: Boolean = true
 
 // Data generation. When true, each loader gets a datagen run (Fabric runDatagen,
-// NeoForge data run) that writes generated resources into the loader's committed
-// generated/ dir. A sample recipe provider ships as a starting point; delete it
-// or set this false to opt out.
+// NeoForge data run) that writes resources into the loader's generated/ dir. That
+// dir is gitignored, so a fresh clone has no generated data until you run the task
+// -- it's regenerable, so it stays out of diffs. A sample recipe provider ships as
+// a starting point; delete it or set this false to opt out.
 datagen: Boolean = true
 
 // Languages. Java is always on. Flip a flag to add Kotlin or Scala to common/;

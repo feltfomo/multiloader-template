@@ -68,6 +68,7 @@ MOD_LICENSE="${SCAFFOLD_LICENSE:-MIT}"
 MOD_DESC="${SCAFFOLD_DESC:-A Minecraft mod.}"
 MOD_KOTLIN="${SCAFFOLD_KOTLIN:-}"
 MOD_SCALA="${SCAFFOLD_SCALA:-}"
+MOD_DATAGEN="${SCAFFOLD_DATAGEN:-}"
 
 [ -z "$MOD_ID" ]    && prompt MOD_ID    "mod id (lowercase)" "mymod"
 [ -z "$MOD_GROUP" ] && prompt MOD_GROUP "group / package"    "com.example.$MOD_ID"
@@ -88,6 +89,11 @@ fi
 if [ -n "$MOD_KOTLIN" ]; then MOD_KOTLIN="$(truthy "$MOD_KOTLIN")"; else yesno MOD_KOTLIN "add kotlin support" "false"; fi
 if [ -n "$MOD_SCALA" ];  then MOD_SCALA="$(truthy "$MOD_SCALA")";   else yesno MOD_SCALA  "add scala support"  "false"; fi
 
+# datagen rides on by default -- it's part of the normal workflow, not an extra
+# language. Off prunes the sample providers below; on Fabric they wouldn't even
+# compile, since fabric-api is gated on this same flag.
+if [ -n "$MOD_DATAGEN" ]; then MOD_DATAGEN="$(truthy "$MOD_DATAGEN")"; else yesno MOD_DATAGEN "include datagen" "true"; fi
+
 # validate the structural identifiers (these end up in package + manifest)
 if ! printf '%s' "$MOD_ID" | grep -Eq '^[a-z][a-z0-9_]*$'; then
   echo "error: mod id must match ^[a-z][a-z0-9_]*$ (got: $MOD_ID)" >&2; exit 1
@@ -107,6 +113,7 @@ echo "  authors $MOD_AUTHORS"
 echo "  license $MOD_LICENSE"
 echo "  kotlin  $MOD_KOTLIN"
 echo "  scala   $MOD_SCALA"
+echo "  datagen $MOD_DATAGEN"
 
 # escape a string for the replacement side of  sed s|...|REPL|
 sed_repl() { printf '%s' "$1" | sed -e 's/[&|\]/\\&/g'; }
@@ -160,6 +167,7 @@ if [ -f pkl/mod.pkl ]; then
     -e "s|^description = .*|description = \"$R_DESC\"|" \
     -e "s|^kotlin: Boolean = .*|kotlin: Boolean = $MOD_KOTLIN|" \
     -e "s|^scala: Boolean = .*|scala: Boolean = $MOD_SCALA|" \
+    -e "s|^datagen: Boolean = .*|datagen: Boolean = $MOD_DATAGEN|" \
     pkl/mod.pkl
 fi
 
@@ -198,6 +206,17 @@ prune_lang() {
 }
 [ "$MOD_KOTLIN" = "true" ] || prune_lang kotlin
 [ "$MOD_SCALA" = "true" ]  || prune_lang scala
+
+# datagen off: drop each loader's sample provider package and any generated
+# output. Not just tidiness -- the Fabric sources import fabric-api, which the
+# build only pulls in when datagen is on, so leaving them would break compile.
+prune_datagen() {
+  for m in fabric neoforge; do
+    find "$m/src" -type d -name datagen -prune -print0 2>/dev/null | xargs -0 -r rm -rf
+  done
+  rm -rf fabric/src/main/generated neoforge/src/generated 2>/dev/null || true
+}
+[ "$MOD_DATAGEN" = "true" ] || prune_datagen
 
 # the gradle wrapper loses its +x bit when the template round-trips through
 # Notion sync (pages don't store unix permissions), so restore it here.

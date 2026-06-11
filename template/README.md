@@ -44,6 +44,17 @@ A Kotlin or Scala entry point is just a class your common code calls - wire it i
 
 Put your mixin class under `common/src/main/java/.../mixin/` (or `.../mixin/client/` for client-only), add its name to the mixin list in `pkl/mod.pkl`, and rebuild. One entry and every loader picks it up.
 
+## Datagen
+
+Recipes, advancements, and tags are generated from code, not hand-written JSON. Each loader has a sample recipe provider in its `datagen/` package to copy from - delete it once you've written your own.
+
+    ./gradlew :fabric:runDatagen
+    ./gradlew :neoforge:runServerData
+
+Output lands in the loader's `generated/` dir (`fabric/src/main/generated`, `neoforge/src/generated/resources`) and rides into that loader's jar. It's gitignored, so a plain `build` from a fresh clone ships no generated data - run the task first, and rerun it whenever you touch a provider. On Fabric the Fabric API is pulled in for datagen only: not bundled, not declared as a depend, so your shipped mod stays dependency-free.
+
+Don't want it? Set `datagen: Boolean = false` in `pkl/mod.pkl` (or scaffold with `SCAFFOLD_DATAGEN=0`) and the providers and runs drop out.
+
 ## What's where
 
     pkl/mod.pkl   your mod's identity, languages, and mixin list

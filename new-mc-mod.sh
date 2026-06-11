@@ -11,6 +11,9 @@
 # Opt into extra JVM languages (default Java-only):
 #   SCAFFOLD_KOTLIN=1 SCAFFOLD_SCALA=1 ./new-mc-mod.sh nexus fomo.dev.nexus "Nexus"
 #
+# Datagen ships on; drop it (and its sample providers) with SCAFFOLD_DATAGEN=0:
+#   SCAFFOLD_DATAGEN=0 ./new-mc-mod.sh nexus fomo.dev.nexus "Nexus"
+#
 # No clone? Use Nix instead (copies only tracked files, always clean):
 #   nix run github:feltfomo/multiloader-template#new -- nexus fomo.dev.nexus "Nexus"
 #   nix flake new -t github:feltfomo/multiloader-template ./nexus && cd nexus && ./scaffold.sh
@@ -47,6 +50,7 @@ tar -C "$src" \
   --exclude='./build' --exclude='*/build' \
   --exclude='*/.gradle' --exclude='*/.kotlin' \
   --exclude='*/run' \
+  --exclude='*/generated' \
   -cf - . | tar -C "$dest" -xf -
 chmod -R u+w "$dest"
 
@@ -54,6 +58,7 @@ chmod -R u+w "$dest"
   cd "$dest"
   SCAFFOLD_ID="$id" SCAFFOLD_GROUP="$group" SCAFFOLD_NAME="$name" \
     SCAFFOLD_KOTLIN="${SCAFFOLD_KOTLIN:-}" SCAFFOLD_SCALA="${SCAFFOLD_SCALA:-}" \
+    SCAFFOLD_DATAGEN="${SCAFFOLD_DATAGEN:-}" \
     ./scaffold.sh
 )
 
