@@ -1,0 +1,42 @@
+# Build output
+.gradle/
+.kotlin/
+build/
+out/
+
+# JDK that ./mcw fetches for a non-Nix build
+.jdk/
+
+# Datagen output. The providers are the source of truth; committing what they
+# emit just drifts the day someone edits a provider and forgets to regenerate.
+**/src/main/generated/
+**/src/generated/
+
+# Access widener + transformer, rendered from Pkl at configure time and kept
+# out of build/ so a clean build can't delete them before the loaders read them.
+.pkl-generated/
+
+# Minecraft / Loom / NeoForge dev runs
+run/
+runs/
+.architectury-transformer/
+*.log
+
+# Nix
+result
+result-*
+.direnv/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+bin/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Keep the Gradle wrapper jar even though build/ globs are greedy
+!gradle/wrapper/gradle-wrapper.jar

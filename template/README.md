@@ -1,4 +1,4 @@
-# modid
+# Modid
 
 A Minecraft mod that runs on Fabric and NeoForge from a single codebase. Built from feltfomo's multiloader template.
 
@@ -6,10 +6,16 @@ You write your code in `common/`, against vanilla Minecraft. The loader folders 
 
 ## Build
 
-    nix develop          # or install Java 25 yourself; the wrapper brings Gradle
-    ./gradlew build      # builds every loader
+No Java on the box? Use the bootstrap wrapper. It finds a JDK 25, or downloads a private one into `.jdk/` (gitignored, nothing system-wide), then runs Gradle:
 
-Build or run a single loader:
+    ./mcw build          # builds every loader
+
+Already set up — Nix, or your own JDK 25 on PATH? Skip the wrapper and call Gradle directly:
+
+    nix develop          # puts JDK 25 + Gradle on PATH
+    ./gradlew build
+
+Build or run a single loader (swap `./gradlew` for `./mcw` if you're leaning on the bootstrap):
 
     ./gradlew :fabric:build
     ./gradlew :fabric:runClient
@@ -18,7 +24,7 @@ Build or run a single loader:
 
 Both loaders are fully wired: common logic, the client entry, and the mixin layer all fire on Fabric and NeoForge.
 
-Use `./gradlew`, not a system `gradle`. The wrapper is pinned to a version that runs on Java 25; an older system gradle fails with a bare version-number error.
+Use `./gradlew` (or `./mcw`), not a system `gradle`. The wrapper is pinned to a version that runs on Java 25; an older system gradle fails with a bare version-number error. `mcw` covers Linux and macOS; on Windows install Temurin 25 yourself and use `gradlew.bat`.
 
 ## Make it yours
 

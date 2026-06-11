@@ -137,14 +137,17 @@ text_files() {
     -print0
 }
 
-# 1) structural identifiers (group + id) everywhere. group first so the bare
-#    `modid` token replace can't corrupt the already-rewritten package string.
+# 1) structural identifiers everywhere. group first so the bare `modid` token
+#    replace can't corrupt the already-rewritten package string. capitalized
+#    `Modid` is the display-name placeholder (e.g. the README title); the pkl
+#    name line gets reset in step 2 too, so this just covers prose elsewhere.
 text_files | while IFS= read -r -d '' f; do
   is_text "$f" || continue
   sed -i \
     -e "s|com\.example\.modid|$MOD_GROUP|g" \
     -e "s|com/example/modid|$MOD_GROUP_PATH|g" \
     -e "s|\bmodid\b|$MOD_ID|g" \
+    -e "s|\bModid\b|$R_NAME|g" \
     -e "s|yourname|$R_AUTHORS|g" \
     "$f"
 done
@@ -211,9 +214,9 @@ prune_datagen() {
 }
 [ "$MOD_DATAGEN" = "true" ] || prune_datagen
 
-# the gradle wrapper loses its +x bit when the template round-trips through
-# Notion sync (pages don't store unix permissions), so restore it here.
-chmod +x gradlew 2>/dev/null || true
+# gradlew and the mcw bootstrap lose their +x bit when the template round-trips
+# through Notion sync (pages don't store unix permissions), so restore them.
+chmod +x gradlew mcw 2>/dev/null || true
 
 echo "done. removing scaffold.sh"
 rm -f -- "$ROOT/scaffold.sh"
@@ -221,7 +224,7 @@ rm -f -- "$ROOT/scaffold.sh"
 cat <<'NEXT'
 
 next:
-  nix develop                      # or put JDK 25 + Gradle on PATH yourself
-  ./gradlew :fabric:runClient
-  ./gradlew :neoforge:runClient
+  ./mcw :fabric:runClient          # grabs JDK 25 if you lack it, then runs gradle
+  ./mcw :neoforge:runClient
+  # set up already (nix develop, or your own JDK 25)? use ./gradlew instead
 NEXT

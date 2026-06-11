@@ -1,5 +1,6 @@
 # ---- Gradle / build output ----
 .gradle/
+.kotlin/
 build/
 out/
 
@@ -49,4 +50,4 @@ bin/
 Thumbs.db
 
 # ---- Keep the Gradle wrapper jar ----
-!gradle/wrapper/gradle-wrapper.jar.kotlin/
+!gradle/wrapper/gradle-wrapper.jar

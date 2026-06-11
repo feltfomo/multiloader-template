@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# mcw — build this mod without Nix. Finds a JDK 25, or fetches a private one
+# into .jdk/, then forwards everything to ./gradlew. Use it like the wrapper:
+# `./mcw build`, `./mcw :fabric:runClient`.
+#
+# Gradle needs a JVM just to start, so the toolchain auto-download wired into
+# settings.gradle.kts can't cover the very first run on a bare machine -- that's
+# the gap this fills. Nix users never touch it; `nix develop` already puts 25 on
+# PATH. The download lands in .jdk/ (gitignored), nothing touches the system.
+set -euo pipefail
+
+JDK_FEATURE=25
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JDK_DIR="$ROOT/.jdk"
+
+# Major java version (8, 21, 25, ...) for a binary, or 0 if it's missing or
+# unusable. Handles the old 1.8 scheme and the modern 25.0.3 one so the caller
+# can just compare numbers. No pipe to head -- pipefail trips on java's SIGPIPE
+# and would report a perfectly good JDK as broken.
+java_major() {
+  local bin="$1" out first ver
+  [ -x "$bin" ] || { echo 0; return; }
+  out="$("$bin" -version 2>&1)" || { echo 0; return; }
+  first="${out%%$'\n'*}"
+  ver="$(printf '%s' "$first" | sed -E 's/.*version "([0-9]+).*/\1/')"
+  if [ "$ver" = 1 ]; then
+    ver="$(printf '%s' "$first" | sed -E 's/.*version "1\.([0-9]+).*/\1/')"
+  fi
+  case "$ver" in ''|*[!0-9]*) echo 0 ;; *) echo "$ver" ;; esac
+}
+
+# Echo JAVA_HOME for a candidate root if it holds a JDK >= JDK_FEATURE. macOS
+# tarballs bury the runtime under Contents/Home, so try both shapes.
+home_if_usable() {
+  local root="$1" bin
+  for bin in "$root/bin/java" "$root/Contents/Home/bin/java"; do
+    if [ -x "$bin" ] && [ "$(java_major "$bin")" -ge "$JDK_FEATURE" ]; then
+      ( cd "$(dirname "$(dirname "$bin")")" && pwd )
+      return 0
+    fi
+  done
+  return 1
+}
+
+# JAVA_HOME to build with, searched cheapest-first: an explicit JAVA_HOME, a JDK
+# we fetched on a previous run, then whatever java is already on PATH.
+resolve_home() {
+  if [ -n "${JAVA_HOME:-}" ] && home_if_usable "$JAVA_HOME"; then return 0; fi
+  if [ -d "$JDK_DIR" ] && home_if_usable "$JDK_DIR"; then return 0; fi
+  if command -v java >/dev/null 2>&1; then
+    local p; p="$(command -v java)"
+    if [ "$(java_major "$p")" -ge "$JDK_FEATURE" ]; then
+      ( cd "$(dirname "$(dirname "$p")")" && pwd )
+      return 0
+    fi
+  fi
+  return 1
+}
+
+# Can't find or fetch a JDK: explain why and point at every sane way to get 25,
+# then stop. Launching Gradle on the wrong Java just buries the user in a
+# class-file-version error three screens down.
+give_up() {
+  printf '%s\n' \
+    "mcw: couldn't set up JDK $JDK_FEATURE automatically ($1)." \
+    "" \
+    "This mod builds on Java $JDK_FEATURE and Gradle needs a JVM to start." \
+    "Get 25 one of these ways, then re-run ./mcw (or use ./gradlew directly):" \
+    "" \
+    "  Temurin   https://adoptium.net/temurin/releases/?version=$JDK_FEATURE" \
+    "  SDKMAN    sdk install java $JDK_FEATURE-tem" \
+    "  Homebrew  brew install --cask temurin@$JDK_FEATURE   (macOS)" \
+    "  Distro    apt/dnf/pacman package for temurin or openjdk-$JDK_FEATURE" \
+    "  Nix       nix develop   (also brings Gradle)" \
+    "" \
+    "Got 25 elsewhere? Point JAVA_HOME at it and re-run ./mcw." \
+    "Windows isn't auto-provisioned: install Temurin $JDK_FEATURE and use gradlew.bat." \
+    1>&2
+  exit 1
+}
+
+# Download the current Temurin GA for this OS/arch into .jdk/. Linux and macOS
+# only; Windows users get the manual path from give_up.
+provision() {
+  local os arch url tmp
+  case "$(uname -s)" in
+    Linux) os=linux ;;
+    Darwin) os=mac ;;
+    *) give_up "no auto-download for $(uname -s)" ;;
+  esac
+  case "$(uname -m)" in
+    x86_64|amd64) arch=x64 ;;
+    arm64|aarch64) arch=aarch64 ;;
+    *) give_up "no auto-download for $(uname -m)" ;;
+  esac
+
+  url="https://api.adoptium.net/v3/binary/latest/$JDK_FEATURE/ga/$os/$arch/jdk/hotspot/normal/eclipse"
+  echo "mcw: no JDK $JDK_FEATURE found; fetching Temurin $JDK_FEATURE for $os/$arch into .jdk/" 1>&2
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+
+  if command -v curl >/dev/null 2>&1; then
+    curl -fSL "$url" -o "$tmp/jdk.tgz" || give_up "download failed (curl)"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -O "$tmp/jdk.tgz" "$url" || give_up "download failed (wget)"
+  else
+    give_up "neither curl nor wget is installed"
+  fi
+
+  rm -rf "$JDK_DIR"
+  mkdir -p "$JDK_DIR"
+  # Strip the jdk-<ver> top dir so .jdk/bin (Linux) or .jdk/Contents/Home
+  # (macOS) is exactly what home_if_usable probes.
+  tar -xzf "$tmp/jdk.tgz" -C "$JDK_DIR" --strip-components=1 || give_up "couldn't unpack the JDK archive"
+  rm -rf "$tmp"; trap - EXIT
+}
+
+JH="$(resolve_home || true)"
+if [ -z "$JH" ]; then
+  provision
+  JH="$(home_if_usable "$JDK_DIR" || true)"
+  [ -n "$JH" ] || give_up "the downloaded JDK didn't land where expected"
+fi
+
+export JAVA_HOME="$JH"
+exec "$ROOT/gradlew" "$@"

@@ -48,6 +48,7 @@ mkdir -p "$dest"
 tar -C "$src" \
   --exclude='./.git' \
   --exclude='./build' --exclude='*/build' \
+  --exclude='./.jdk' \
   --exclude='*/.gradle' --exclude='*/.kotlin' \
   --exclude='*/run' \
   --exclude='*/generated' \
@@ -65,5 +66,5 @@ chmod -R u+w "$dest"
 echo
 echo "created ./$id"
 echo "  cd $id"
-echo "  nix develop          # dev shell lives in the generated project, not the repo root"
-echo "  ./gradlew :fabric:runClient"
+echo "  ./mcw :fabric:runClient   # grabs JDK 25 if needed, then runs (no nix required)"
+echo "  # or: nix develop, then ./gradlew :fabric:runClient"
