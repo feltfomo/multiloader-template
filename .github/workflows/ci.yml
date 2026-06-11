@@ -3,10 +3,9 @@
 # a break in the scaffolder is as fatal as a break in the mod code, and only
 # this path catches both at once.
 #
-# One job builds every loader with a single ./mcw build, not a per-loader matrix.
-# A matrix has to read its leg through GitHub's templated expressions, and this
-# repo is authored through a Notion mirror that mangles their double-brace form,
-# so the whole workflow stays brace-free on purpose.
+# One job builds every loader with a single ./mcw build, not a per-loader
+# matrix: mcw builds both Fabric and NeoForge in one invocation, so a matrix
+# would just split that into two slower legs for nothing.
 name: ci
 
 on:
@@ -27,7 +26,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "25"
+          java-version: '25'
 
       # Caches the Gradle user home so only the first run eats the full
       # dependency download. Also validates the wrapper jar.
