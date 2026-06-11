@@ -19,6 +19,10 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 val commonProject = project(":common")
 val commonSourceSets = commonProject.extensions.getByType<SourceSetContainer>()
 
+// serverData writes generated resources here. Resolved up front because the run
+// config block has a different receiver and shouldn't resolve project paths.
+val generatedResources = file("src/generated/resources").absolutePath
+
 neoForge {
     version = neoVersion
     // Generated from pkl/mod.pkl's accessEntries; read from the stable dir the
@@ -32,6 +36,23 @@ neoForge {
             server()
             programArguments.add("--nogui")
         }
+        // The sample datagen only emits a recipe -- datapack (server) data -- so
+        // it runs under serverData; with no client assets there's no reason to
+        // spin up the heavier clientData run. Output lands in src/generated/resources.
+        if (modConfig.datagen) {
+            // serverData() only sets the run type; MDG doesn't fill in the data
+            // generator args, so the bare run just prints --help and exits. Spell
+            // them out: which mod to dump, run every registered provider, and
+            // write into the generated source dir wired below.
+            create("serverData") {
+                serverData()
+                programArguments.add("--mod")
+                programArguments.add(modConfig.id)
+                programArguments.add("--all")
+                programArguments.add("--output")
+                programArguments.add(generatedResources)
+            }
+        }
     }
     mods {
         create("modid") {
@@ -39,6 +60,14 @@ neoForge {
             sourceSet(commonSourceSets.getByName("main"))
             sourceSet(commonSourceSets.getByName("client"))
         }
+    }
+}
+
+// The serverData run writes to src/generated/resources; make those outputs ship
+// in the jar. srcDir dedups, so this stays a no-op if MDG also registers it.
+if (modConfig.datagen) {
+    sourceSets.named("main") {
+        resources.srcDir("src/generated/resources")
     }
 }
 
