@@ -149,16 +149,9 @@ text_files | while IFS= read -r -d '' f; do
     "$f"
 done
 
-# 2) metadata that only lives in gradle.properties + pkl/mod.pkl
-if [ -f gradle.properties ]; then
-  sed -i \
-    -e "s|^mod_name=.*|mod_name=$R_NAME|" \
-    -e "s|^mod_version=.*|mod_version=$R_VERSION|" \
-    -e "s|^mod_license=.*|mod_license=$R_LICENSE|" \
-    -e "s|^mod_authors=.*|mod_authors=$R_AUTHORS|" \
-    -e "s|^mod_description=.*|mod_description=$R_DESC|" \
-    gradle.properties
-fi
+# 2) identity + flags, which live only in pkl/mod.pkl now. gradle.properties used
+#    to carry mod_name/version/etc, but that moved to pkl (the root build reads
+#    identity from there), so there's nothing left to rewrite in it.
 if [ -f pkl/mod.pkl ]; then
   sed -i \
     -e "s|^name = .*|name = \"$R_NAME\"|" \
