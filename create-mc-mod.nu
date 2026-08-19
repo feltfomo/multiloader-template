@@ -9,7 +9,7 @@ def fail [message: string, code: int = 1] {
   exit $code
 }
 
-def main [...args: string] {
+def --wrapped main [...args: string] {
   let selected_ref = ($env.MULTILOADER_TEMPLATE_REF? | default $release_ref)
   let temp = (^mktemp -d | str trim)
   let archive = ($temp | path join "template.tar.gz")

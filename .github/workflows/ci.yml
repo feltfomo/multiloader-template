@@ -90,6 +90,34 @@ jobs:
           fi
           grep -F 'mod id must start with a lowercase letter' <<<"$invalid_output"
 
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hustcer/setup-nu@v3
+        with:
+          version: '0.114.0'
+
+      - name: generate through standalone bootstrap
+        env:
+          MULTILOADER_TEMPLATE_REF: main
+        run: |
+          cd "$RUNNER_TEMP"
+          nu "$GITHUB_WORKSPACE/create-mc-mod.nu" \
+            cibootstrap \
+            dev.ci.cibootstrap \
+            "CI Bootstrap" \
+            --language scala \
+            --side client \
+            --version "1.2.3" \
+            --author "CI Author" \
+            --license "Apache-2.0" \
+            --description "Generated through the standalone bootstrap."
+          test -n "$(find cibootstrap/common/src/main/scala -name ClientInit.scala -print -quit)"
+          grep -F 'version = "1.2.3"' cibootstrap/pkl/mod.pkl
+          grep -F 'authors = new { "CI Author" }' cibootstrap/pkl/mod.pkl
+
   nix:
     runs-on: ubuntu-latest
     steps:
