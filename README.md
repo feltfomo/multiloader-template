@@ -16,14 +16,14 @@ Arguments are `<mod_id> <group> [display name]`. The id and each group segment m
 nix run github:feltfomo/multiloader-template#new -- coolmod com.example.coolmod 'Cool Mod'
 ```
 
-Creates `./coolmod` in the current directory, rewrites every placeholder, and removes the scaffold script when it finishes. Run it from where you want the project to land (e.g. `~/Projects`), not from inside this repo.
+Creates `./coolmod` in the current directory, rewrites every placeholder, and removes the scaffold script when it finishes. Run it from where you want the project to land (e.g. `~/Projects`), not from inside this repo. Nushell is bundled into the Nix app, so it doesn't need to be installed separately.
 
 ### Nix flake template
 
 ```bash
 nix flake new -t github:feltfomo/multiloader-template ./coolmod
 cd coolmod
-./scaffold.sh
+nu scaffold.nu
 ```
 
 ### degit (no Nix)
@@ -31,10 +31,10 @@ cd coolmod
 ```bash
 npx degit feltfomo/multiloader-template/template coolmod
 cd coolmod
-./scaffold.sh
+nu scaffold.nu
 ```
 
-From a full clone you can also run `./new-mc-mod.sh coolmod com.example.coolmod 'Cool Mod'` from the repo root. `scaffold.sh` runs interactively when given no args, prompting for id, group, and name, and deletes itself when done.
+The flake-template and degit paths need Nushell for the one-shot scaffolder. From a full clone you can run `nu new-mc-mod.nu coolmod com.example.coolmod 'Cool Mod'` from the repo root. `scaffold.nu` runs interactively when given no args, prompting for id, group, and name, and deletes itself when done.
 
 ## Build and run
 
@@ -60,9 +60,9 @@ template/           the project that gets copied out
   fabric/           fabric entry shim
   neoforge/         neoforge entry shim
   flake.nix         dev shell: Java 25, Pkl, and the gradle wrapper
-  scaffold.sh       placeholder rewriter, runs once then deletes itself
+  scaffold.nu       placeholder rewriter, runs once then deletes itself
   mcw               no-Nix build wrapper: fetches JDK 25, runs the wrapper
-new-mc-mod.sh       the generator the nix app runs
+new-mc-mod.nu       the generator the nix app runs
 flake.nix           exposes the #new app and the flake template
 .github/            ci that scaffolds a mod and builds both loaders
 ```
@@ -71,4 +71,4 @@ Pkl renders `fabric.mod.json`, the NeoForge `mods.toml`, and the mixin configs f
 
 ## Stack
 
-Minecraft 26.1.2, Java 25, Gradle 9.5.1 (wrapper), Fabric Loom, NeoForge moddev, Pkl. Kotlin and Scala are wired in as examples of mixed-language common code; both ride along in the built jar.
+Minecraft 26.1.2, Java 25, Gradle 9.5.1 (wrapper), Fabric Loom, NeoForge moddev, Pkl, Nushell. Kotlin and Scala are wired in as examples of mixed-language common code; both ride along in the built jar.

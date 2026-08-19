@@ -29,9 +29,6 @@ result
 result-*
 .direnv/
 
-# ---- notion-sync state ----
-.notion-sync/
-
 # ---- IDE ----
 .idea/
 *.iml

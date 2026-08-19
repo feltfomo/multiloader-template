@@ -1,11 +1,4 @@
-# Build a real scaffolded mod, not the raw template. What people actually get
-# is the output of new-mc-mod.sh + scaffold.sh, so that's what CI guards here:
-# a break in the scaffolder is as fatal as a break in the mod code, and only
-# this path catches both at once.
-#
-# One job builds every loader with a single ./mcw build, not a per-loader
-# matrix: mcw builds both Fabric and NeoForge in one invocation, so a matrix
-# would just split that into two slower legs for nothing.
+# ci builds the scaffolded output because that is the project users receive
 name: ci
 
 on:
@@ -20,24 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Temurin 25 on PATH (and JAVA_HOME), so mcw resolves it and skips its own
-      # download. Not testing the download path here on purpose: pulling 135M
-      # every run is slow and flaky, and it's one curl.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '25'
 
-      # Caches the Gradle user home so only the first run eats the full
-      # dependency download. Also validates the wrapper jar.
+      - uses: hustcer/setup-nu@v3
+        with:
+          version: '0.110.0'
+
       - uses: gradle/actions/setup-gradle@v4
 
-      # Scaffold into the runner's temp dir, outside the checkout, so the
-      # generated project can't shadow repo files. Then build every loader
-      # through mcw, which also proves the wrapper resolves a JDK and forwards.
       - name: scaffold a throwaway mod and build it
         run: |
           cd "$RUNNER_TEMP"
-          bash "$GITHUB_WORKSPACE/new-mc-mod.sh" cimod dev.cimod.test "CI Mod" </dev/null
+          nu "$GITHUB_WORKSPACE/new-mc-mod.nu" cimod dev.cimod.test "CI Mod"
           cd cimod
           ./mcw build
