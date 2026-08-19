@@ -49,6 +49,51 @@ jobs:
             "CI ${{ matrix.language }} ${{ matrix.side }}" \
             --language "${{ matrix.language }}" \
             --side "${{ matrix.side }}" \
+            --version "1.2.3" \
+            --author "CI Author" \
+            --license "Apache-2.0" \
+            --description "Generated in CI." \
             ${{ matrix.extra }}
           cd "${{ matrix.mod_id }}"
+          grep -F 'version = "1.2.3"' pkl/mod.pkl
+          grep -F 'authors = new { "CI Author" }' pkl/mod.pkl
+          grep -F 'license = "Apache-2.0"' pkl/mod.pkl
+          grep -F 'description = "Generated in CI."' pkl/mod.pkl
+          ! grep -RIlE 'com\.example\.modid|yourname|@@[A-Z_]+@@' .
           ./mcw build
+          fabric_jar=$(find fabric/build/libs -name '*.jar' -print -quit)
+          test -n "$fabric_jar"
+          jar tf "$fabric_jar" | grep -F '${{ matrix.mod_id }}'
+
+  generator-errors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hustcer/setup-nu@v3
+        with:
+          version: '0.110.0'
+
+      - name: reject invalid and occupied destinations
+        run: |
+          cd "$RUNNER_TEMP"
+          mkdir occupied
+          if occupied_output=$(nu "$GITHUB_WORKSPACE/new-mc-mod.nu" occupied dev.ci.occupied Occupied --author "CI Author" 2>&1); then
+            echo "occupied destination unexpectedly succeeded"
+            exit 1
+          fi
+          grep -F './occupied already exists' <<<"$occupied_output"
+
+          if invalid_output=$(nu "$GITHUB_WORKSPACE/new-mc-mod.nu" Invalid-ID dev.ci.invalid Invalid --author "CI Author" 2>&1); then
+            echo "invalid id unexpectedly succeeded"
+            exit 1
+          fi
+          grep -F 'mod id must start with a lowercase letter' <<<"$invalid_output"
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      - run: nix flake check ./template
+      - run: nix develop ./template --command java -version

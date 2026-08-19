@@ -1,44 +1,34 @@
 {
-  description = "feltfomo multiloader template — toolchain + dev shell";
+  description = "feltfomo multiloader template — toolchain, formatting, and dev shell";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
 
-  outputs = { self, nixpkgs }:
-    let
-      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      forAllSystems = f:
-        nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
-    in {
-      devShells = forAllSystems (pkgs:
-        let
-          # MC 26.1+ needs Java 25. If your channel lacks jdk25, swap in
-          # pkgs.temurin-bin-25 or the newest pkgs.jdk available.
-          jdk = pkgs.jdk25;
+  outputs =
+    inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [ inputs.treefmt-nix.flakeModule ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
 
-          # Native libs Minecraft's LWJGL/GLFW/OpenAL dlopen at runtime.
-          # NixOS doesn't put these on the default loader path, so a dev
-          # client crashes at window/GL init without them. Linux only.
-          runtimeLibs = with pkgs; [
-            libGL glfw openal libpulseaudio vulkan-loader flite
-            libx11 libxcursor libxext libxrandr
-            libxxf86vm libxi libxrender libxtst
-            wayland libxkbcommon udev stdenv.cc.cc.lib
-          ];
-        in {
-          default = pkgs.mkShell {
-            # Use the wrapper (./gradlew, pinned 9.5.1), not a system gradle:
-            # nixpkgs' gradle is a different version and dies on JDK 25.
-            packages = [ jdk ];
-            JAVA_HOME = "${jdk}";
-            shellHook = ''
-              echo "multiloader dev shell ready"
-              ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-                # so runClient (and IntelliJ launched from this shell) finds the GL/X11/wayland natives
-                export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath runtimeLibs}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-              ''}
-              java -version
-            '';
+      perSystem =
+        { pkgs, config, ... }:
+        {
+          treefmt = import ./formatter.nix;
+          devShells.default = import ./dev.nix {
+            inherit pkgs;
+            treefmt = config.treefmt.build.wrapper;
           };
-        });
+        };
     };
 }

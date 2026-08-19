@@ -3,15 +3,15 @@ import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
 
 // Fabric bootstrap. Wires the common module into Fabric's loader.
 plugins {
-    id("java-library")
-    id("net.fabricmc.fabric-loom")
+  id("java-library")
+  id("net.fabricmc.fabric-loom")
 }
 
 // Minecraft + loader versions come from pkl/mod.pkl via buildSrc (one source).
 val modConfig = ModConfig.load(rootDir.resolve("pkl/mod.pkl"))
-val minecraftVersion: String    = modConfig.mcVersion
+val minecraftVersion: String = modConfig.mcVersion
 val fabricLoaderVersion: String = modConfig.fabricLoaderVersion
-val fabricApiVersion: String    = modConfig.fabricApiVersion
+val fabricApiVersion: String = modConfig.fabricApiVersion
 
 // When Kotlin is enabled, apply the plugin here too so the jar-in-jar coordinate
 // below can read the version straight from the plugin (one source, no sync).
@@ -20,18 +20,18 @@ if (modConfig.kotlin) pluginManager.apply("org.jetbrains.kotlin.jvm")
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 loom {
-    splitEnvironmentSourceSets()
-    // Generated from pkl/mod.pkl's accessEntries; read from the stable dir the
-    // root build writes during configuration (clean-build safe).
-    if (modConfig.hasAccessWideners) {
-        accessWidenerPath.set(rootProject.file(".pkl-generated/${modConfig.id}.accesswidener"))
+  splitEnvironmentSourceSets()
+  // Generated from pkl/mod.pkl's accessEntries; read from the stable dir the
+  // root build writes during configuration (clean-build safe).
+  if (modConfig.hasAccessWideners) {
+    accessWidenerPath.set(rootProject.file(".pkl-generated/${modConfig.id}.accesswidener"))
+  }
+  mods {
+    register("modid") {
+      sourceSet(sourceSets.main.get())
+      sourceSet(sourceSets.getByName("client"))
     }
-    mods {
-        register("modid") {
-            sourceSet(sourceSets.main.get())
-            sourceSet(sourceSets.getByName("client"))
-        }
-    }
+  }
 }
 
 // Data generation (Fabric API). Creates the `runDatagen` task + a "Data
@@ -39,67 +39,67 @@ loom {
 // adds to the main sourceset's resources, so they ride into the jar. Gated on the
 // pkl datagen flag.
 if (modConfig.datagen) {
-    fabricApi {
-        configureDataGeneration {
-        }
-    }
+  fabricApi {
+    configureDataGeneration {}
+  }
 }
 
 val commonProject = project(":common")
 val commonSourceSets = commonProject.extensions.getByType<SourceSetContainer>()
 
 dependencies {
-    minecraft("com.mojang:minecraft:$minecraftVersion")
-    implementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
-    implementation(commonProject)
-    "clientImplementation"(commonSourceSets.getByName("client").output)
+  minecraft("com.mojang:minecraft:$minecraftVersion")
+  implementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
+  implementation(commonProject)
+  "clientImplementation"(commonSourceSets.getByName("client").output)
 
-    // Fabric API, datagen-only. Non-obfuscated Minecraft has nothing to remap, so
-    // Loom never creates modImplementation -- the official 26.1 example declares
-    // fabric-api on plain implementation. Not include()'d, so it stays out of the
-    // jar and fabric.mod.json never lists it under depends: the shipped mod is
-    // dependency-free, fabric-api is just there to compile and run datagen.
-    if (modConfig.datagen) {
-        implementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
-    }
+  // Fabric API, datagen-only. Non-obfuscated Minecraft has nothing to remap, so
+  // Loom never creates modImplementation -- the official 26.1 example declares
+  // fabric-api on plain implementation. Not include()'d, so it stays out of the
+  // jar and fabric.mod.json never lists it under depends: the shipped mod is
+  // dependency-free, fabric-api is just there to compile and run datagen.
+  if (modConfig.datagen) {
+    implementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
+  }
 
-    // Bundle each language runtime inside the fabric jar (jar-in-jar), but only
-    // when that language is enabled. In dev they're already on the runtime
-    // classpath transitively via common. Scala version from pkl; Kotlin version
-    // from the applied plugin.
-    if (modConfig.scala) {
-        include("org.scala-lang:scala3-library_3:${modConfig.scalaVersion}")
-    }
-    if (modConfig.kotlin) {
-        include("org.jetbrains.kotlin:kotlin-stdlib:${getKotlinPluginVersion()}")
-    }
+  // Bundle each language runtime inside the fabric jar (jar-in-jar), but only
+  // when that language is enabled. In dev they're already on the runtime
+  // classpath transitively via common. Scala version from pkl; Kotlin version
+  // from the applied plugin.
+  if (modConfig.scala) {
+    include("org.scala-lang:scala3-library_3:${modConfig.scalaVersion}")
+  }
+  if (modConfig.kotlin) {
+    include("org.jetbrains.kotlin:kotlin-stdlib:${getKotlinPluginVersion()}")
+  }
 }
 
 // Fabric ships a single jar, so common's compiled output + resources ride inside
 // it. Loom remaps this jar (a no-op on unobfuscated MC), so the merged classes and
 // assets land in the published artifact -- same idea as the neoforge jar task below.
 tasks.named<Jar>("jar") {
-    from(commonSourceSets.getByName("main").output)
-    from(commonSourceSets.getByName("client").output)
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  from(commonSourceSets.getByName("main").output)
+  from(commonSourceSets.getByName("client").output)
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 // fabric.mod.json + the mixin configs are generated by Pkl into build/generated.
 // Copy them into this module's resources at build time instead of committing them.
 val generated = rootProject.layout.buildDirectory.dir("generated")
+
 tasks.named<ProcessResources>("processResources") {
-    dependsOn(":generatePklConfigs")
-    from(generated.map { it.dir("fabric") }) // fabric.mod.json
-    from(generated.map { it.dir("common") }) // modid.mixins.json + modid.client.mixins.json
-    // The access widener has to ride in the jar root so Fabric applies it at
-    // runtime; Loom remaps it in place. EXCLUDE guards against a double add.
-    if (modConfig.hasAccessWideners) {
-        from(rootProject.file(".pkl-generated/${modConfig.id}.accesswidener"))
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    }
+  dependsOn(":generatePklConfigs")
+  from(generated.map { it.dir("fabric") }) // fabric.mod.json
+  from(generated.map { it.dir("common") }) // modid.mixins.json + modid.client.mixins.json
+  // The access widener has to ride in the jar root so Fabric applies it at
+  // runtime; Loom remaps it in place. EXCLUDE guards against a double add.
+  if (modConfig.hasAccessWideners) {
+    from(rootProject.file(".pkl-generated/${modConfig.id}.accesswidener"))
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  }
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.encoding = "UTF-8"
-    options.release = 25
+  options.encoding = "UTF-8"
+  options.release = 25
 }

@@ -5,11 +5,11 @@ import org.slf4j.LoggerFactory;
 
 // physical-client logic starts here
 public final class ClientInit {
-    private static final Logger LOGGER = LoggerFactory.getLogger("modid/client");
+  private static final Logger LOGGER = LoggerFactory.getLogger("modid/client");
 
-    private ClientInit() {}
+  private ClientInit() {}
 
-    public static void init() {
-        LOGGER.info("modid client init");
-    }
+  public static void init() {
+    LOGGER.info("modid client init");
+  }
 }

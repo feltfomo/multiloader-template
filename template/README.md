@@ -32,6 +32,18 @@ Build or run one loader:
 
 Use the `runServer` tasks instead for a dedicated-server archetype. Replace `./gradlew` with `./mcw` when relying on the bootstrap wrapper.
 
+## Nix development environment
+
+The generated flake uses flake-parts and provides JDK 25 plus the Linux libraries needed by LWJGL for OpenGL, Vulkan, X11, Wayland, and audio. GPU drivers remain the host operating system's responsibility.
+
+```bash
+nix develop
+nix fmt
+nix flake check
+```
+
+Add project-specific packages in `dev.nix`. Formatting is configured in `formatter.nix` through treefmt; generated and disposable directories are excluded. Continue using the Gradle wrapper rather than adding a system Gradle package.
+
 ## Start writing code
 
 The chosen starter is named `ModInit` for shared or server-safe initialization and `ClientInit` for physical-client initialization.
@@ -125,6 +137,8 @@ Outputs land in each loader's generated-resource directory and are gitignored. S
 ```text
 pkl/mod.pkl       public project configuration
 pkl/render.pkl    schema and manifest renderers
+dev.nix           customizable development shell
+formatter.nix     treefmt configuration
 common/           selected starter and mixins
 fabric/           Fabric loader shim
 neoforge/         NeoForge loader shim

@@ -5,12 +5,12 @@ import org.slf4j.LoggerFactory;
 
 // shared, server-safe logic starts here
 public final class ModInit {
-    private static final String MOD_ID = "modid";
-    private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+  private static final String MOD_ID = "modid";
+  private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    private ModInit() {}
+  private ModInit() {}
 
-    public static void init() {
-        LOGGER.info("{} common init", MOD_ID);
-    }
+  public static void init() {
+    LOGGER.info("{} common init", MOD_ID);
+  }
 }

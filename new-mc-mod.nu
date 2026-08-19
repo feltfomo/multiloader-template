@@ -11,12 +11,22 @@ def env-string [name: string] {
   $env | get -o $name | default ""
 }
 
+def git-author [] {
+  if (which git | is-empty) { return "" }
+  let result = (do { ^git config --get user.name } | complete)
+  if $result.exit_code == 0 { $result.stdout | str trim } else { "" }
+}
+
 def main [
   id?: string
   group?: string
   name?: string
   --language: string
   --side: string
+  --version: string
+  --author: string
+  --license: string
+  --description: string
   --kotlin
   --scala
   --no-datagen
@@ -67,11 +77,37 @@ def main [
   }
 
   if not ($mod_language in ["java" "kotlin" "scala"]) {
-    fail $"language must be java, kotlin, or scala (got ($mod_language))"
+    fail $"language must be java, kotlin, or scala; got ($mod_language)"
   }
   if not ($mod_side in ["both" "client" "server"]) {
-    fail $"side must be both, client, or server (got ($mod_side))"
+    fail $"side must be both, client, or server; got ($mod_side)"
   }
+
+  let requested_author = ($author | default "")
+  let env_author = (env-string "SCAFFOLD_AUTHORS")
+  let configured_author = if (($requested_author | is-empty) and ($env_author | is-empty)) { git-author } else { "" }
+  let mod_author = if not ($requested_author | is-empty) {
+    $requested_author
+  } else if not ($env_author | is-empty) {
+    $env_author
+  } else if not ($configured_author | is-empty) {
+    $configured_author
+  } else {
+    ""
+  }
+  if ($mod_author | is-empty) {
+    fail "author is required, pass --author or configure git user.name"
+  }
+
+  let requested_version = ($version | default "")
+  let env_version = (env-string "SCAFFOLD_VERSION")
+  let mod_version = if not ($requested_version | is-empty) { $requested_version } else if not ($env_version | is-empty) { $env_version } else { "1.0.0" }
+  let requested_license = ($license | default "")
+  let env_license = (env-string "SCAFFOLD_LICENSE")
+  let mod_license = if not ($requested_license | is-empty) { $requested_license } else if not ($env_license | is-empty) { $env_license } else { "MIT" }
+  let requested_description = ($description | default "")
+  let env_description = (env-string "SCAFFOLD_DESC")
+  let mod_description = if not ($requested_description | is-empty) { $requested_description } else if not ($env_description | is-empty) { $env_description } else { "A Minecraft mod." }
 
   let dest = ($env.PWD | path join $mod_id)
   if ($dest | path exists) {
@@ -107,11 +143,22 @@ def main [
     SCAFFOLD_LANGUAGE: $mod_language
     SCAFFOLD_SIDE: $mod_side
     SCAFFOLD_DATAGEN: (if $no_datagen { "0" } else { $env_datagen })
+    SCAFFOLD_VERSION: $mod_version
+    SCAFFOLD_AUTHORS: $mod_author
+    SCAFFOLD_LICENSE: $mod_license
+    SCAFFOLD_DESC: $mod_description
   }
 
   cd $dest
   with-env $scaffold_env {
     nu scaffold.nu --non-interactive
+  }
+
+  let placeholder_scan = (do {
+    ^grep -RIlE 'com\.example\.modid|yourname|@@[A-Z_]+@@' .
+  } | complete)
+  if $placeholder_scan.exit_code == 0 {
+    fail $"unreplaced template values remain:\n($placeholder_scan.stdout | str trim)"
   }
 
   print ""

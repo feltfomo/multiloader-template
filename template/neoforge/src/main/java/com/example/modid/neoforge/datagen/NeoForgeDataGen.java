@@ -7,8 +7,8 @@ import net.neoforged.neoforge.data.event.GatherDataEvent;
 // the static subscriber disappears entirely when datagen is disabled
 @EventBusSubscriber(modid = "modid")
 public final class NeoForgeDataGen {
-    @SubscribeEvent
-    public static void gatherData(GatherDataEvent.Server event) {
-        event.createProvider(SampleRecipeProvider.Runner::new);
-    }
+  @SubscribeEvent
+  public static void gatherData(GatherDataEvent.Server event) {
+    event.createProvider(SampleRecipeProvider.Runner::new);
+  }
 }

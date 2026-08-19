@@ -12,10 +12,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 // is generated from pkl and wired into both loaders.
 @Mixin(TitleScreen.class)
 public class TitleScreenMixin {
-    private static final Logger LOGGER = LogUtils.getLogger();
+  private static final Logger LOGGER = LogUtils.getLogger();
 
-    @Inject(method = "init", at = @At("TAIL"))
-    private void modid$onInit(CallbackInfo ci) {
-        LOGGER.info("[modid] client mixin active: TitleScreen.init TAIL");
-    }
+  @Inject(method = "init", at = @At("TAIL"))
+  private void modid$onInit(CallbackInfo ci) {
+    LOGGER.info("[modid] client mixin active: TitleScreen.init TAIL");
+  }
 }

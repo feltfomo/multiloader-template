@@ -29,7 +29,7 @@ def ask-bool [label: string, fallback: bool, non_interactive: bool] {
     $fallback
   } else {
     let hint = if $fallback { "Y/n" } else { "y/N" }
-    let reply = (input $"($label) [($hint)]: " | str downcase)
+    let reply = (input $"($label) [($hint)]: " | str lowercase)
     if ($reply | is-empty) { $fallback } else { $reply in ["y" "yes"] }
   }
 }
@@ -123,10 +123,10 @@ def main [--non-interactive(-y)] {
   let language_env = (env-string "SCAFFOLD_LANGUAGE")
   let mod_language = if ($language_env | is-empty) { ask "language (java, kotlin, scala)" "java" $non_interactive } else { $language_env }
 
-  if not ($mod_id =~ '^[a-z][a-z0-9_]*$') { fail $"mod id must match ^[a-z][a-z0-9_]*$ (got ($mod_id))" }
-  if not ($mod_group =~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$') { fail $"group must look like com.example.($mod_id) (got ($mod_group))" }
-  if not ($mod_side in ["both" "client" "server"]) { fail $"side must be both, client, or server (got ($mod_side))" }
-  if not ($mod_language in ["java" "kotlin" "scala"]) { fail $"language must be java, kotlin, or scala (got ($mod_language))" }
+  if not ($mod_id =~ '^[a-z][a-z0-9_]*$') { fail $"mod id must start with a lowercase letter and contain only lowercase letters, digits, or underscores; got ($mod_id)" }
+  if not ($mod_group =~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$') { fail $"group must look like com.example.($mod_id); got ($mod_group)" }
+  if not ($mod_side in ["both" "client" "server"]) { fail $"side must be both, client, or server; got ($mod_side)" }
+  if not ($mod_language in ["java" "kotlin" "scala"]) { fail $"language must be java, kotlin, or scala; got ($mod_language)" }
 
   let datagen_env = (env-string "SCAFFOLD_DATAGEN")
   let datagen_default = $mod_side != "client"

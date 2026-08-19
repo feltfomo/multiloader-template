@@ -12,10 +12,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 // in your own -- it exists to prove the common mixin path end to end.
 @Mixin(Bootstrap.class)
 public class BootstrapMixin {
-    private static final Logger LOGGER = LogUtils.getLogger();
+  private static final Logger LOGGER = LogUtils.getLogger();
 
-    @Inject(method = "bootStrap", at = @At("TAIL"))
-    private static void modid$onBootStrap(CallbackInfo ci) {
-        LOGGER.info("[modid] common mixin active: Bootstrap.bootStrap TAIL");
-    }
+  @Inject(method = "bootStrap", at = @At("TAIL"))
+  private static void modid$onBootStrap(CallbackInfo ci) {
+    LOGGER.info("[modid] common mixin active: Bootstrap.bootStrap TAIL");
+  }
 }

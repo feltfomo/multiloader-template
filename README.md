@@ -17,7 +17,22 @@ nix run github:feltfomo/multiloader-template#new -- \
   'Cool Mod'
 ```
 
-The default is a Java mod for both client and server with datagen enabled.
+The default is a Java mod for both client and server with datagen enabled. The author defaults to `git config user.name`; pass `--author` when Git has no configured name.
+
+### Standalone release script
+
+Nushell users can download one pinned bootstrap without cloning the repository or installing Nix:
+
+```bash
+curl --fail --location --remote-name \
+  https://github.com/feltfomo/multiloader-template/releases/download/v1.2.0/create-mc-mod.nu
+
+nu create-mc-mod.nu \
+  coolmod com.example.coolmod 'Cool Mod' \
+  --language scala --side client
+```
+
+The release also includes `create-mc-mod.nu.sha256`. The bootstrap downloads the matching tagged template into a temporary directory, generates the project in the current directory, and removes the temporary copy.
 
 ### Choose an archetype
 
@@ -38,6 +53,10 @@ nix run github:feltfomo/multiloader-template#new -- \
 | `--language` | `java`, `kotlin`, `scala` | `java` |
 | `--side` | `both`, `client`, `server` | `both` |
 | `--no-datagen` | removes the bundled server-data example | off |
+| `--version` | initial mod version | `1.0.0` |
+| `--author` | manifest author | Git user name |
+| `--license` | project license identifier | `MIT` |
+| `--description` | manifest description | `A Minecraft mod.` |
 
 A client-only project defaults datagen off because the bundled providers generate server data. The older `--kotlin` and `--scala` shortcuts remain accepted, but `--language` is the clearer interface.
 
@@ -101,6 +120,18 @@ From a generated project:
 
 For a server archetype, use the corresponding `runServer` tasks.
 
+### Nix development environment
+
+Generated projects include a flake-parts development shell with JDK 25, Linux LWJGL runtime libraries, OpenGL, Vulkan, X11, Wayland, OpenAL, and diagnostic `vulkaninfo` support. Host GPU drivers still come from the operating system.
+
+```bash
+nix develop
+nix fmt
+nix flake check
+```
+
+`dev.nix` is the intended customization point for adding or removing packages. `formatter.nix` configures treefmt, nixfmt, and statix.
+
 ## Repository layout
 
 ```text
@@ -111,10 +142,13 @@ template/             project copied by the generator
   fabric/             Fabric loader shims and optional datagen
   neoforge/           NeoForge loader shims and optional datagen
   scaffold.nu         one-shot archetype scaffolder
+  dev.nix             customizable development shell
+  formatter.nix       treefmt configuration
   mcw                 no-Nix JDK and Gradle bootstrap
-new-mc-mod.nu         copy-and-scaffold command used by the Nix app
+new-mc-mod.nu         internal copy-and-scaffold implementation
+create-mc-mod.nu      standalone release bootstrap
 flake.nix             exposes the app and flake template
-.github/workflows/    generated-project build matrix
+.github/workflows/    build matrix and tag release automation
 ```
 
 CI builds Java/both, Kotlin/server, and Scala/client generated projects so the choices stay real rather than decorative.
