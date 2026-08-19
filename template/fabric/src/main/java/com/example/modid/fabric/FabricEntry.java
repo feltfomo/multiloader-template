@@ -1,12 +1,12 @@
 package com.example.modid.fabric;
 
-import com.example.modid.ModInit;
+import com.example.modid.@@MOD_INIT_TYPE@@;
 import net.fabricmc.api.ModInitializer;
 
-// Fabric main shim. Loader-facing; just calls common init.
+// loader-facing shim for shared or server-safe initialization
 public final class FabricEntry implements ModInitializer {
     @Override
     public void onInitialize() {
-        ModInit.init();
+        @@MOD_INIT_CALL@@
     }
 }

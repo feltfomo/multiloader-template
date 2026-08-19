@@ -1,0 +1,204 @@
+// schema and renderers for mod.pkl
+// generated projects should not need to edit this file
+
+id: String(matches(Regex(#"[a-z][a-z0-9_]*"#))) = "modid"
+name: String = "Modid"
+version: String = "1.0.0"
+group: String(matches(Regex(#"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*"#))) = "com.example.modid"
+authors: Listing<String> = new { "yourname" }
+license: String = "MIT"
+description: String = "A Minecraft mod."
+
+side: String(matches(Regex(#"both|client|server"#))) = "both"
+language: String(matches(Regex(#"java|kotlin|scala"#))) = "java"
+datagen: Boolean = true
+
+mcVersion: String = "26.1.2"
+fabricLoaderVersion: String = "0.19.3"
+neoVersion: String = "26.1.2.73"
+fabricApiVersion: String = "0.151.0+26.1.2"
+scalaVersion: String = "3.8.3"
+
+commonMixins: Listing<String> = new { "BootstrapMixin" }
+clientMixins: Listing<String> = new { "TitleScreenMixin" }
+accessEntries: Listing<AccessEntry> = new {}
+
+javaVersion: Int = 25
+hasMain: Boolean = side != "client"
+hasClient: Boolean = side != "server"
+kotlin: Boolean = language == "kotlin"
+scala: Boolean = language == "scala"
+mixinPackage: String = group + ".mixin"
+
+class AccessEntry {
+  kind: String
+  owner: String
+  member: String = ""
+  descriptor: String = ""
+  mutable: Boolean = false
+}
+
+fabricEntry: String = group + ".fabric.FabricEntry"
+fabricClientEntry: String = group + ".fabric.FabricClientEntry"
+fabricDatagenEntry: String = group + ".fabric.datagen.FabricDataGen"
+
+local activeCommonMixins: Listing<String> = if (hasMain) commonMixins else new {}
+local activeClientMixins: Listing<String> = if (hasClient) clientMixins else new {}
+local fabricEnvironment: String = if (side == "client") "client" else if (side == "server") "server" else "*"
+local dependencySide: String = if (side == "client") "CLIENT" else if (side == "server") "SERVER" else "BOTH"
+
+local fabricMod: Dynamic = new {
+  schemaVersion = 1
+  id = module.id
+  version = module.version
+  name = module.name
+  description = module.description
+  authors = module.authors
+  license = module.license
+  environment = fabricEnvironment
+  when (!module.accessEntries.isEmpty) {
+    accessWidener = "\(module.id).accesswidener"
+  }
+  entrypoints = new Dynamic {
+    when (module.hasMain) {
+      main = new Listing { module.fabricEntry }
+    }
+    when (module.hasClient) {
+      client = new Listing { module.fabricClientEntry }
+    }
+    when (module.datagen) {
+      ["fabric-datagen"] = new Listing { module.fabricDatagenEntry }
+    }
+  }
+  mixins = new Listing {
+    when (!activeCommonMixins.isEmpty) {
+      "\(module.id).mixins.json"
+    }
+    when (!activeClientMixins.isEmpty) {
+      new Dynamic {
+        config = "\(module.id).client.mixins.json"
+        environment = "client"
+      }
+    }
+  }
+  depends = new Dynamic {
+    fabricloader = ">=\(module.fabricLoaderVersion)"
+    minecraft = "~\(module.mcVersion)"
+    java = ">=\(module.javaVersion)"
+  }
+}
+
+local mixinsMain: Dynamic = new {
+  required = true
+  ["package"] = module.mixinPackage
+  compatibilityLevel = "JAVA_\(module.javaVersion)"
+  mixins = activeCommonMixins
+  injectors = new Dynamic { defaultRequire = 1 }
+}
+
+local mixinsClient: Dynamic = new {
+  required = true
+  ["package"] = module.mixinPackage + ".client"
+  compatibilityLevel = "JAVA_\(module.javaVersion)"
+  mixins = activeClientMixins
+  injectors = new Dynamic { defaultRequire = 1 }
+}
+
+local function dotted(owner: String): String = owner.split("/").join(".")
+
+local accessWidenerLines: Listing<String> = new {
+  "accessWidener v2 official"
+  for (e in module.accessEntries) {
+    when (e.kind == "class") {
+      "accessible class \(e.owner)"
+    }
+    when (e.kind == "field") {
+      "accessible field \(e.owner) \(e.member) \(e.descriptor)"
+      when (e.mutable) {
+        "mutable field \(e.owner) \(e.member) \(e.descriptor)"
+      }
+    }
+    when (e.kind == "method") {
+      "accessible method \(e.owner) \(e.member) \(e.descriptor)"
+    }
+  }
+}
+
+local accessTransformerLines: Listing<String> = new {
+  for (e in module.accessEntries) {
+    when (e.kind == "class") {
+      "public \(dotted(e.owner))"
+    }
+    when (e.kind == "field") {
+      "\(if (e.mutable) "public-f" else "public") \(dotted(e.owner)) \(e.member)"
+    }
+    when (e.kind == "method") {
+      "public \(dotted(e.owner)) \(e.member)\(e.descriptor)"
+    }
+  }
+}
+
+accessWidenerText: String = accessWidenerLines.toList().join("\n") + "\n"
+accessTransformerText: String = accessTransformerLines.toList().join("\n") + "\n"
+
+local function tstr(s: String): String = (new JsonRenderer {}).renderValue(s)
+
+local neoToml: String = (new Listing {
+  "modLoader = \(tstr("javafml"))"
+  "loaderVersion = \(tstr("[1,)"))"
+  "license = \(tstr(module.license))"
+  ""
+  "[[mods]]"
+  "  modId = \(tstr(module.id))"
+  "  version = \(tstr(module.version))"
+  "  displayName = \(tstr(module.name))"
+  "  description = \(tstr(module.description))"
+  "  authors = \(tstr(module.authors.toList().join(", ")))"
+  ""
+  when (!activeCommonMixins.isEmpty) {
+    "[[mixins]]"
+    "  config = \(tstr("\(module.id).mixins.json"))"
+  }
+  when (!activeClientMixins.isEmpty) {
+    "[[mixins]]"
+    "  config = \(tstr("\(module.id).client.mixins.json"))"
+  }
+  ""
+  "[[dependencies.\(module.id)]]"
+  "  modId = \(tstr("neoforge"))"
+  "  type = \(tstr("required"))"
+  "  versionRange = \(tstr("[\(module.neoVersion),)"))"
+  "  ordering = \(tstr("NONE"))"
+  "  side = \(tstr(dependencySide))"
+  ""
+  "[[dependencies.\(module.id)]]"
+  "  modId = \(tstr("minecraft"))"
+  "  type = \(tstr("required"))"
+  "  versionRange = \(tstr("[\(module.mcVersion),)"))"
+  "  ordering = \(tstr("NONE"))"
+  "  side = \(tstr(dependencySide))"
+}).toList().join("\n") + "\n"
+
+output {
+  files {
+    ["fabric/fabric.mod.json"] {
+      value = fabricMod
+      renderer = new JsonRenderer {}
+    }
+    when (!activeCommonMixins.isEmpty) {
+      ["common/\(module.id).mixins.json"] {
+        value = mixinsMain
+        renderer = new JsonRenderer {}
+      }
+    }
+    when (!activeClientMixins.isEmpty) {
+      ["common/\(module.id).client.mixins.json"] {
+        value = mixinsClient
+        renderer = new JsonRenderer {}
+      }
+    }
+    ["neoforge/neoforge.mods.toml"] {
+      text = neoToml
+    }
+  }
+}

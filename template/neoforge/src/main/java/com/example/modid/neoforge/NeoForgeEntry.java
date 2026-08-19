@@ -1,11 +1,12 @@
 package com.example.modid.neoforge;
 
-import com.example.modid.ModInit;
+import com.example.modid.@@MOD_INIT_TYPE@@;
 import net.neoforged.fml.common.Mod;
 
-@Mod(ModInit.MOD_ID)
+// loader-facing shim for shared or server-safe initialization
+@Mod("modid")
 public final class NeoForgeEntry {
     public NeoForgeEntry() {
-        ModInit.init();
+        @@MOD_INIT_CALL@@
     }
 }

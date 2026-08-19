@@ -1,71 +1,133 @@
 # Modid
 
-A Minecraft mod that runs on Fabric and NeoForge from a single codebase. Built from feltfomo's multiloader template.
+A Fabric and NeoForge Minecraft mod generated from one shared codebase.
 
-You write your code in `common/`, against vanilla Minecraft. The loader folders are thin shims that just hand off to common, so you rarely open them.
+The scaffolder already selected the project language and physical side, removed unused starters, and wired the matching manifests and loader entrypoints. Most work belongs in `common/`.
 
 ## Build
 
-No Java on the box? Use the bootstrap wrapper. It finds a JDK 25, or downloads a private one into `.jdk/` (gitignored, nothing system-wide), then runs Gradle:
+With no system JDK setup:
 
-    ./mcw build          # builds every loader
+```bash
+./mcw build
+```
 
-Already set up — Nix, or your own JDK 25 on PATH? Skip the wrapper and call Gradle directly:
+`mcw` finds JDK 25 or downloads a private Temurin 25 into `.jdk/`, then runs the pinned Gradle wrapper.
 
-    nix develop          # puts JDK 25 + Gradle on PATH
-    ./gradlew build
+With Nix or an existing JDK 25:
 
-Build or run a single loader (swap `./gradlew` for `./mcw` if you're leaning on the bootstrap):
+```bash
+nix develop
+./gradlew build
+```
 
-    ./gradlew :fabric:build
-    ./gradlew :fabric:runClient
-    ./gradlew :neoforge:build
-    ./gradlew :neoforge:runClient
+Build or run one loader:
 
-Both loaders are fully wired: common logic, the client entry, and the mixin layer all fire on Fabric and NeoForge.
+```bash
+./gradlew :fabric:build
+./gradlew :neoforge:build
+./gradlew :fabric:runClient
+./gradlew :neoforge:runClient
+```
 
-Use `./gradlew` (or `./mcw`), not a system `gradle`. The wrapper is pinned to a version that runs on Java 25; an older system gradle fails with a bare version-number error. `mcw` covers Linux and macOS; on Windows install Temurin 25 yourself and use `gradlew.bat`.
+Use the `runServer` tasks instead for a dedicated-server archetype. Replace `./gradlew` with `./mcw` when relying on the bootstrap wrapper.
 
-## Make it yours
+## Start writing code
 
-Everything that names the mod is in `pkl/mod.pkl` - id, name, group, version, authors. Change those, then rebuild. The build regenerates the loader manifests and mixin configs from that one file, so you never touch a `fabric.mod.json` directly. To see the generated output without a full build, run `./gradlew generatePklConfigs`; it writes to `build/generated/`.
+The chosen starter is named `ModInit` for shared or server-safe initialization and `ClientInit` for physical-client initialization.
+
+The scaffolder keeps only what the selected side needs:
+
+- `both` keeps `ModInit` and `ClientInit`
+- `client` keeps `ClientInit`
+- `server` keeps `ModInit`
+
+The starter uses the selected language under the matching source root:
+
+```text
+common/src/main/java/...
+common/src/main/kotlin/...
+common/src/main/scala/...
+```
+
+Java client code uses the split `common/src/client/java/` source set. Kotlin and Scala client starters use a client package in the selected main-language root. The loader shims remain Java and should rarely need edits.
+
+## Project configuration
+
+Edit `pkl/mod.pkl`. It is the public project file and contains:
+
+- id, name, group, version, authors, license, and description
+- `side` as `both`, `client`, or `server`
+- `language` as `java`, `kotlin`, or `scala`
+- datagen, loader versions, mixins, and access entries
+
+`pkl/render.pkl` contains the schema and loader-format machinery. Leave it alone unless changing how the template itself renders manifests.
+
+Generate the loader files without a full build:
+
+```bash
+./gradlew generatePklConfigs
+```
+
+The task writes `fabric.mod.json`, `neoforge.mods.toml`, and the applicable mixin configs under `build/generated/`.
 
 ## Languages
 
-Java is on by default and it's all you need. Kotlin and Scala are opt-in - flip a flag in `pkl/mod.pkl`:
+The generated project applies and bundles only the selected language runtime:
 
-    kotlin: Boolean = true
-    scala: Boolean = true
+- Java adds no extra runtime
+- Kotlin applies the Kotlin plugin and bundles `kotlin-stdlib`
+- Scala applies the Scala plugin and bundles the Scala 3 library
 
-When a flag is on, the build applies that language's plugin to `common/` and bundles its runtime into each loader jar (Fabric `include`, NeoForge `jarJar`). Kotlin's version comes from the kotlin plugin pinned in the root `build.gradle.kts`; Scala's version is `scalaVersion` in `pkl/mod.pkl`. Off by default means no extra plugins, no bundled runtimes, nothing to compile.
+Fabric uses jar-in-jar and NeoForge uses `jarJar`. Mixins remain Java even in Kotlin and Scala projects because Mixin injection methods depend on predictable bytecode.
 
-To add code in a language you've enabled, drop it under the matching source root:
+## Physical sides
 
-    common/src/main/kotlin/com/example/modid/...
-    common/src/main/scala/com/example/modid/...
+The side choice changes real source and metadata, not just a label:
 
-A Kotlin or Scala entry point is just a class your common code calls - wire it in from `ModInit`. Keep mixins in Java: Kotlin and Scala compiled output fights Mixin's bytecode model.
+- client removes shared entrypoints and server-data examples
+- server removes client entrypoints, client sources, and client mixins
+- both keeps shared and client paths
+
+Fabric receives the matching `environment` and entrypoint set. NeoForge uses separate common and `Dist.CLIENT` annotations, with unused classes removed by the scaffolder.
 
 ## Mixins
 
-Put your mixin class under `common/src/main/java/.../mixin/` (or `.../mixin/client/` for client-only), add its name to the mixin list in `pkl/mod.pkl`, and rebuild. One entry and every loader picks it up.
+Put shared mixins under:
+
+```text
+common/src/main/java/.../mixin/
+```
+
+Put client mixins under:
+
+```text
+common/src/client/java/.../mixin/client/
+```
+
+Add class names to `commonMixins` or `clientMixins` in `pkl/mod.pkl`. Pkl propagates each applicable config to both loaders.
 
 ## Datagen
 
-Recipes, advancements, and tags are generated from code, not hand-written JSON. Each loader has a sample recipe provider in its `datagen/` package to copy from - delete it once you've written your own.
+The bundled datagen example emits server recipe data. Both-side and server projects enable it by default; client projects default it off.
 
-    ./gradlew :fabric:runDatagen
-    ./gradlew :neoforge:runServerData
+Run the providers with:
 
-Output lands in the loader's `generated/` dir (`fabric/src/main/generated`, `neoforge/src/generated/resources`) and rides into that loader's jar. It's gitignored, so a plain `build` from a fresh clone ships no generated data - run the task first, and rerun it whenever you touch a provider. On Fabric the Fabric API is pulled in for datagen only: not bundled, not declared as a depend, so your shipped mod stays dependency-free.
+```bash
+./gradlew :fabric:runDatagen
+./gradlew :neoforge:runServerData
+```
 
-Don't want it? Set `datagen: Boolean = false` in `pkl/mod.pkl` (or scaffold with `SCAFFOLD_DATAGEN=0`) and the providers and runs drop out.
+Outputs land in each loader's generated-resource directory and are gitignored. Set `datagen = false` in `pkl/mod.pkl` to disable the build wiring in an existing project.
 
-## What's where
+## Layout
 
-    pkl/mod.pkl   your mod's identity, languages, and mixin list
-    common/       your code, compiled against vanilla
-    fabric/       fabric entry shim
-    neoforge/     neoforge entry shim
+```text
+pkl/mod.pkl       public project configuration
+pkl/render.pkl    schema and manifest renderers
+common/           selected starter and mixins
+fabric/           Fabric loader shim
+neoforge/         NeoForge loader shim
+```
 
-Most of your time is spent in `common/`.
+Start in `common/`, keep loader-specific code thin, and let Pkl keep both loader manifests aligned.

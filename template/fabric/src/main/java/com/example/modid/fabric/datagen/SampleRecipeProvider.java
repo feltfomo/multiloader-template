@@ -12,12 +12,10 @@ import net.minecraft.world.item.Items;
 import net.fabricmc.fabric.api.datagen.v1.FabricPackOutput;
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricRecipeProvider;
 
-import com.example.modid.ModInit;
-
-// Sample recipe provider -- a starting point you can delete. It only touches
-// vanilla items and saves under the mod id, so it never overwrites a vanilla
-// recipe. Replace the body of buildRecipes() with your own.
+// the sample writes only under the generated mod id
 public final class SampleRecipeProvider extends FabricRecipeProvider {
+    private static final String MOD_ID = "modid";
+
     public SampleRecipeProvider(FabricPackOutput output, CompletableFuture<HolderLookup.Provider> registries) {
         super(output, registries);
     }
@@ -30,7 +28,7 @@ public final class SampleRecipeProvider extends FabricRecipeProvider {
                 shapeless(RecipeCategory.MISC, Items.DIRT)
                         .requires(Items.COARSE_DIRT)
                         .unlockedBy(getHasName(Items.COARSE_DIRT), has(Items.COARSE_DIRT))
-                        .save(output, Identifier.fromNamespaceAndPath(ModInit.MOD_ID, "sample_recipe").toString());
+                        .save(output, Identifier.fromNamespaceAndPath(MOD_ID, "sample_recipe").toString());
             }
         };
     }

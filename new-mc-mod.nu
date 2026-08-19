@@ -15,6 +15,8 @@ def main [
   id?: string
   group?: string
   name?: string
+  --language: string
+  --side: string
   --kotlin
   --scala
   --no-datagen
@@ -36,6 +38,39 @@ def main [
   if ($mod_group | is-empty) {
     let reply = (input $"group / package [com.example.($mod_id)]: ")
     $mod_group = if ($reply | is-empty) { $"com.example.($mod_id)" } else { $reply }
+  }
+
+  let requested_language = ($language | default "")
+  if (($kotlin and $scala) or (($kotlin or $scala) and not ($requested_language | is-empty))) {
+    fail "choose exactly one of --language, --kotlin, or --scala"
+  }
+
+  let legacy_language = if $kotlin { "kotlin" } else if $scala { "scala" } else { "" }
+  let env_language = (env-string "SCAFFOLD_LANGUAGE")
+  let mod_language = if not ($legacy_language | is-empty) {
+    $legacy_language
+  } else if not ($requested_language | is-empty) {
+    $requested_language
+  } else if not ($env_language | is-empty) {
+    $env_language
+  } else {
+    "java"
+  }
+  let requested_side = ($side | default "")
+  let env_side = (env-string "SCAFFOLD_SIDE")
+  let mod_side = if not ($requested_side | is-empty) {
+    $requested_side
+  } else if not ($env_side | is-empty) {
+    $env_side
+  } else {
+    "both"
+  }
+
+  if not ($mod_language in ["java" "kotlin" "scala"]) {
+    fail $"language must be java, kotlin, or scala (got ($mod_language))"
+  }
+  if not ($mod_side in ["both" "client" "server"]) {
+    fail $"side must be both, client, or server (got ($mod_side))"
   }
 
   let dest = ($env.PWD | path join $mod_id)
@@ -64,16 +99,13 @@ def main [
 
   ^chmod -R u+w $dest
 
-  let env_kotlin = (env-string "SCAFFOLD_KOTLIN")
-  let env_scala = (env-string "SCAFFOLD_SCALA")
   let env_datagen = (env-string "SCAFFOLD_DATAGEN")
-
   let scaffold_env = {
     SCAFFOLD_ID: $mod_id
     SCAFFOLD_GROUP: $mod_group
     SCAFFOLD_NAME: $mod_name
-    SCAFFOLD_KOTLIN: (if $kotlin { "1" } else { $env_kotlin })
-    SCAFFOLD_SCALA: (if $scala { "1" } else { $env_scala })
+    SCAFFOLD_LANGUAGE: $mod_language
+    SCAFFOLD_SIDE: $mod_side
     SCAFFOLD_DATAGEN: (if $no_datagen { "0" } else { $env_datagen })
   }
 
@@ -85,6 +117,10 @@ def main [
   print ""
   print $"created ./($mod_id)"
   print $"  cd ($mod_id)"
-  print "  ./mcw :fabric:runClient"
+  if $mod_side != "server" {
+    print "  ./mcw :fabric:runClient"
+  } else {
+    print "  ./mcw :fabric:runServer"
+  }
   print "  # or enter nix develop and use ./gradlew"
 }

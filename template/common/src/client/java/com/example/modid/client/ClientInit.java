@@ -1,12 +1,15 @@
 package com.example.modid.client;
 
-import com.example.modid.ModInit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-// Client-only common entry point.
+// physical-client logic starts here
 public final class ClientInit {
+    private static final Logger LOGGER = LoggerFactory.getLogger("modid/client");
+
     private ClientInit() {}
 
     public static void init() {
-        ModInit.LOGGER.info("{} client init", ModInit.MOD_ID);
+        LOGGER.info("modid client init");
     }
 }

@@ -1,237 +1,41 @@
-// Single source of truth for this multiloader mod.
-//
-// Edit the fields under EDIT THIS. Everything below the machinery line is the
-// schema (type + value constraints) and the renderers that turn these fields
-// into fabric.mod.json, neoforge.mods.toml, and the mixin configs.
-//
-// buildSrc reads the top fields at Gradle configure time; the manifests are
-// rendered by the :generatePklConfigs task. You never hand-edit a loader
-// manifest -- add a mixin class to commonMixins / clientMixins and it lands
-// in every loader at once.
+amends "render.pkl"
 
-// ============================ EDIT THIS ============================
+// this is the project file generated for you
+// edit values here and leave render.pkl alone
 
-id: String(matches(Regex(#"[a-z][a-z0-9_]*"#))) = "modid"
-name: String = "Modid"
-version: String = "1.0.0"
-group: String(matches(Regex(#"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*"#))) = "com.example.modid"
-authors: Listing<String> = new { "yourname" }
-license: String = "MIT"
-description: String = "A multiloader example built from one Pkl source."
+// identity
+id = "modid"
+name = "Modid"
+version = "1.0.0"
+group = "com.example.modid"
+authors = new { "yourname" }
+license = "MIT"
+description = "A Minecraft mod."
 
-mcVersion: String = "26.1.2"
-fabricLoaderVersion: String = "0.19.3"
-neoVersion: String = "26.1.2.73"
+// archetype
+// side accepts both, client, or server
+// language accepts java, kotlin, or scala
+side = "both"
+language = "java"
+datagen = true
 
-// Fabric API build, matched to mcVersion. Used datagen-only on Fabric: it is not
-// bundled into the shipped jar and not declared as a runtime depend, so a built
-// mod stays dependency-free. NeoForge ships its own datagen API.
-fabricApiVersion: String = "0.151.0+26.1.2"
+// minecraft and loader versions
+mcVersion = "26.1.2"
+fabricLoaderVersion = "0.19.3"
+neoVersion = "26.1.2.73"
+fabricApiVersion = "0.151.0+26.1.2"
+scalaVersion = "3.8.3"
 
-// Does this mod have a client side? Set false for a server-only mod.
-hasClient: Boolean = true
+// mixins stay in java even when the project language is kotlin or scala
+commonMixins = new { "BootstrapMixin" }
+clientMixins = new { "TitleScreenMixin" }
 
-// Data generation. When true, each loader gets a datagen run (Fabric runDatagen,
-// NeoForge data run) that writes resources into the loader's generated/ dir. That
-// dir is gitignored, so a fresh clone has no generated data until you run the task
-// -- it's regenerable, so it stays out of diffs. A sample recipe provider ships as
-// a starting point; delete it or set this false to opt out.
-datagen: Boolean = true
-
-// Languages. Java is always on. Flip a flag to add Kotlin or Scala to common/;
-// the build scripts apply the plugin and bundle the runtime only when true.
-kotlin: Boolean = false
-scala: Boolean = false
-
-// Scala runtime coordinate (only used when scala is true). Kotlin has no version
-// here -- the kotlin plugin in the root build owns its version.
-scalaVersion: String = "3.8.3"
-
-// Add mixin class names here; they propagate to every loader.
-commonMixins: Listing<String> = new { "BootstrapMixin" }
-clientMixins: Listing<String> = new { "TitleScreenMixin" }
-
-// Access wideners. Each entry loosens access to one vanilla member; Pkl renders
-// it to BOTH a Fabric access widener and a NeoForge access transformer, so this
-// one list drives both loaders. kind is "class" | "field" | "method"; owner is a
-// slash-separated internal name; descriptor is the JVM descriptor (needed for
-// field/method, omit for class); mutable=true also strips `final`.
-accessEntries: Listing<AccessEntry> = new {
-  new { kind = "method"; owner = "net/minecraft/server/Bootstrap"; member = "wrapStreams"; descriptor = "()V" }
-}
-
-// ============================ MACHINERY ============================
-// You should not need to edit anything below this line.
-
-javaVersion: Int = 25
-
-mixinPackage: String = group + ".mixin"
-
-// One access-widening entry. Renders to both loader formats (see below).
-class AccessEntry {
-  kind: String            // "class" | "field" | "method"
-  owner: String           // internal name, e.g. net/minecraft/server/Bootstrap
-  member: String = ""      // field/method name; empty for a class entry
-  descriptor: String = "" // JVM descriptor; empty for a class entry
-  mutable: Boolean = false // field entries: also strip `final`
-}
-
-// Loader entrypoints are tiny Java shims that call common init().
-// Always Java, so no language adapter dependency is needed.
-fabricEntry: String = group + ".fabric.FabricEntry"
-fabricClientEntry: String = group + ".fabric.FabricClientEntry"
-fabricDatagenEntry: String = group + ".fabric.datagen.FabricDataGen"
-
-// ---------- derived manifests ----------
-
-local fabricMod: Dynamic = new {
-  schemaVersion = 1
-  id = module.id
-  version = module.version
-  name = module.name
-  description = module.description
-  authors = module.authors
-  license = module.license
-  environment = "*"
-  when (!module.accessEntries.isEmpty) {
-    accessWidener = "\(module.id).accesswidener"
-  }
-  entrypoints = new Dynamic {
-    main = new Listing { module.fabricEntry }
-    when (module.hasClient) {
-      client = new Listing { module.fabricClientEntry }
-    }
-    when (module.datagen) {
-      ["fabric-datagen"] = new Listing { module.fabricDatagenEntry }
-    }
-  }
-  mixins = new Listing {
-    "\(module.id).mixins.json"
-    when (module.hasClient) {
-      new Dynamic {
-        config = "\(module.id).client.mixins.json"
-        environment = "client"
-      }
-    }
-  }
-  depends = new Dynamic {
-    fabricloader = ">=\(module.fabricLoaderVersion)"
-    minecraft = "~\(module.mcVersion)"
-    java = ">=\(module.javaVersion)"
-  }
-}
-
-local mixinsMain: Dynamic = new {
-  required = true
-  ["package"] = module.mixinPackage
-  compatibilityLevel = "JAVA_\(module.javaVersion)"
-  mixins = module.commonMixins
-  injectors = new Dynamic { defaultRequire = 1 }
-}
-
-local mixinsClient: Dynamic = new {
-  required = true
-  ["package"] = module.mixinPackage + ".client"
-  compatibilityLevel = "JAVA_\(module.javaVersion)"
-  mixins = module.clientMixins
-  injectors = new Dynamic { defaultRequire = 1 }
-}
-
-// ---------- access wideners ----------
-// One source -> two formats. Fabric reads a v2 "named" access widener; NeoForge
-// reads an access transformer (dotted names). Both come from accessEntries.
-local function dotted(owner: String): String = owner.split("/").join(".")
-
-local accessWidenerLines: Listing<String> = new {
-  "accessWidener v2 official"
-  for (e in module.accessEntries) {
-    when (e.kind == "class") {
-      "accessible class \(e.owner)"
-    }
-    when (e.kind == "field") {
-      "accessible field \(e.owner) \(e.member) \(e.descriptor)"
-      when (e.mutable) {
-        "mutable field \(e.owner) \(e.member) \(e.descriptor)"
-      }
-    }
-    when (e.kind == "method") {
-      "accessible method \(e.owner) \(e.member) \(e.descriptor)"
-    }
-  }
-}
-
-local accessTransformerLines: Listing<String> = new {
-  for (e in module.accessEntries) {
-    when (e.kind == "class") {
-      "public \(dotted(e.owner))"
-    }
-    when (e.kind == "field") {
-      "\(if (e.mutable) "public-f" else "public") \(dotted(e.owner)) \(e.member)"
-    }
-    when (e.kind == "method") {
-      "public \(dotted(e.owner)) \(e.member)\(e.descriptor)"
-    }
-  }
-}
-
-// Rendered text consumed by buildSrc at configure time (non-local on purpose).
-accessWidenerText: String = accessWidenerLines.toList().join("\n") + "\n"
-accessTransformerText: String = accessTransformerLines.toList().join("\n") + "\n"
-
-// Pkl has no built-in TOML renderer. A JSON-quoted string is a valid TOML
-// basic string, so we reuse JsonRenderer to escape values correctly.
-local function tstr(s: String): String = (new JsonRenderer {}).renderValue(s)
-
-local neoToml: String = (new Listing {
-  "modLoader = \(tstr("javafml"))"
-  "loaderVersion = \(tstr("[1,)"))"
-  "license = \(tstr(module.license))"
-  ""
-  "[[mods]]"
-  "  modId = \(tstr(module.id))"
-  "  version = \(tstr(module.version))"
-  "  displayName = \(tstr(module.name))"
-  "  description = \(tstr(module.description))"
-  "  authors = \(tstr(module.authors.toList().join(", ")))"
-  ""
-  "[[mixins]]"
-  "  config = \(tstr("\(module.id).mixins.json"))"
-  when (module.hasClient) {
-    "[[mixins]]"
-    "  config = \(tstr("\(module.id).client.mixins.json"))"
-  }
-  ""
-  "[[dependencies.\(module.id)]]"
-  "  modId = \(tstr("neoforge"))"
-  "  type = \(tstr("required"))"
-  "  versionRange = \(tstr("[\(module.neoVersion),)"))"
-  "  ordering = \(tstr("NONE"))"
-  "  side = \(tstr("BOTH"))"
-  ""
-  "[[dependencies.\(module.id)]]"
-  "  modId = \(tstr("minecraft"))"
-  "  type = \(tstr("required"))"
-  "  versionRange = \(tstr("[\(module.mcVersion),)"))"
-  "  ordering = \(tstr("NONE"))"
-  "  side = \(tstr("BOTH"))"
-}).toList().join("\n") + "\n"
-
-output {
-  files {
-    ["fabric/fabric.mod.json"] {
-      value = fabricMod
-      renderer = new JsonRenderer {}
-    }
-    ["common/\(module.id).mixins.json"] {
-      value = mixinsMain
-      renderer = new JsonRenderer {}
-    }
-    ["common/\(module.id).client.mixins.json"] {
-      value = mixinsClient
-      renderer = new JsonRenderer {}
-    }
-    ["neoforge/neoforge.mods.toml"] {
-      text = neoToml
-    }
+// each access entry renders to both loader formats
+accessEntries = new {
+  new {
+    kind = "method"
+    owner = "net/minecraft/server/Bootstrap"
+    member = "wrapStreams"
+    descriptor = "()V"
   }
 }

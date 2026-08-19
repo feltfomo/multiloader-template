@@ -1,4 +1,4 @@
-# ci builds the scaffolded output because that is the project users receive
+# ci builds generated projects because those are what users receive
 name: ci
 
 on:
@@ -10,6 +10,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mod_id: cijava
+            language: java
+            side: both
+            extra: ''
+          - mod_id: cikotlin
+            language: kotlin
+            side: server
+            extra: --no-datagen
+          - mod_id: ciscala
+            language: scala
+            side: client
+            extra: ''
     steps:
       - uses: actions/checkout@v4
 
@@ -24,9 +40,15 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: scaffold a throwaway mod and build it
+      - name: scaffold ${{ matrix.language }} ${{ matrix.side }} mod
         run: |
           cd "$RUNNER_TEMP"
-          nu "$GITHUB_WORKSPACE/new-mc-mod.nu" cimod dev.cimod.test "CI Mod"
-          cd cimod
+          nu "$GITHUB_WORKSPACE/new-mc-mod.nu" \
+            "${{ matrix.mod_id }}" \
+            "dev.ci.${{ matrix.mod_id }}" \
+            "CI ${{ matrix.language }} ${{ matrix.side }}" \
+            --language "${{ matrix.language }}" \
+            --side "${{ matrix.side }}" \
+            ${{ matrix.extra }}
+          cd "${{ matrix.mod_id }}"
           ./mcw build

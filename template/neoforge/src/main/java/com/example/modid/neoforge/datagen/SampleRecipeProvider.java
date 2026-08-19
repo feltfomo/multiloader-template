@@ -10,13 +10,9 @@ import net.minecraft.data.recipes.RecipeProvider;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Items;
 
-import com.example.modid.ModInit;
-
-// Sample recipe provider -- a starting point you can delete. It only touches
-// vanilla items and saves under the mod id, so it never overwrites a vanilla
-// recipe. Replace the body of buildRecipes() with your own. The nested Runner
-// is what GatherDataEvent hands off to; it just builds this provider.
+// the sample writes only under the generated mod id
 public final class SampleRecipeProvider extends RecipeProvider {
+    private static final String MOD_ID = "modid";
     private final RecipeOutput recipeOutput;
 
     public SampleRecipeProvider(HolderLookup.Provider registries, RecipeOutput output) {
@@ -29,7 +25,7 @@ public final class SampleRecipeProvider extends RecipeProvider {
         shapeless(RecipeCategory.MISC, Items.DIRT)
                 .requires(Items.COARSE_DIRT)
                 .unlockedBy(getHasName(Items.COARSE_DIRT), has(Items.COARSE_DIRT))
-                .save(recipeOutput, Identifier.fromNamespaceAndPath(ModInit.MOD_ID, "sample_recipe").toString());
+                .save(recipeOutput, Identifier.fromNamespaceAndPath(MOD_ID, "sample_recipe").toString());
     }
 
     public static final class Runner extends RecipeProvider.Runner {
