@@ -36,7 +36,7 @@ jobs:
 
       - uses: hustcer/setup-nu@v3
         with:
-          version: '0.110.0'
+          version: '0.114.0'
 
       - uses: gradle/actions/setup-gradle@v4
 
@@ -72,7 +72,7 @@ jobs:
 
       - uses: hustcer/setup-nu@v3
         with:
-          version: '0.110.0'
+          version: '0.114.0'
 
       - name: reject invalid and occupied destinations
         run: |
